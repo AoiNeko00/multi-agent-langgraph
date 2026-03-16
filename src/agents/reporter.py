@@ -101,13 +101,17 @@ def report(state: AgentState) -> dict:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{slug}_{timestamp}.md"
 
+    # Qwen3 /no_think 사용 시 남는 <think> 태그 제거(cleanup)
+    content = response.content
+    content = re.sub(r"<think>[\s\S]*?</think>\s*", "", content).strip()
+
     save_result = save_report.invoke({
         "filename": filename,
-        "content": response.content,
+        "content": content,
     })
 
     return {
-        "result": response.content,
+        "result": content,
         "report_path": save_result,
         "status": "reporting",
         "messages": state.get("messages", []) + [response],
