@@ -17,6 +17,7 @@ def test_build_workflow_has_nodes():
     assert "planner" in node_names
     assert "executor" in node_names
     assert "critic" in node_names
+    assert "reporter" in node_names
 
 
 def test_build_research_workflow_has_nodes():
