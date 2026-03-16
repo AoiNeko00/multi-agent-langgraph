@@ -63,7 +63,16 @@ def execute(state: AgentState) -> dict:
 
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
 
+    # 프로젝트 컨텍스트(context)가 있으면 주입
+    context_block = ""
+    if state.get("context"):
+        context_block = (
+            f"## 프로젝트 컨텍스트 (이 정보를 기반으로 결과물을 생성할 것)\n"
+            f"{state['context']}\n\n"
+        )
+
     prompt = (
+        f"{context_block}"
         f"## 원래 작업\n{state['task']}\n\n"
         f"## 실행할 계획\n{state['plan']}\n\n"
         f"위 계획의 각 단계를 실행하고 구체적인 결과물을 생성하세요."

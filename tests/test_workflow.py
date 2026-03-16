@@ -51,6 +51,7 @@ def test_should_continue_done():
         "feedback": "",
         "iteration": 1,
         "max_iterations": 3,
+        "context": "",
         "report_path": "",
         "status": "done",
     }
@@ -67,6 +68,7 @@ def test_should_continue_reviewing():
         "feedback": "개선 필요",
         "iteration": 1,
         "max_iterations": 3,
+        "context": "",
         "report_path": "",
         "status": "reviewing",
     }

@@ -10,6 +10,7 @@ from src.agents.memory import save_execution
 from src.graph.enhance_workflow import create_enhance_app
 from src.graph.research_workflow import create_research_app
 from src.graph.workflow import create_app
+from src.tools.threadloom import load_project_summary
 
 
 def run(task: str, max_iterations: int = 3, mode: str = "plan") -> dict:
@@ -26,6 +27,12 @@ def run(task: str, max_iterations: int = 3, mode: str = "plan") -> dict:
     }
     app = apps.get(mode, create_app)()
 
+    # threadloom 관련 작업이면 프로젝트 컨텍스트(context) 자동 주입
+    context = ""
+    threadloom_keywords = ["threadloom", "4-phase", "4phase", "자기강화"]
+    if any(kw in task.lower() for kw in threadloom_keywords):
+        context = load_project_summary()
+
     initial_state = {
         "messages": [],
         "task": task,
@@ -34,6 +41,7 @@ def run(task: str, max_iterations: int = 3, mode: str = "plan") -> dict:
         "feedback": "",
         "iteration": 0,
         "max_iterations": max_iterations,
+        "context": context,
         "report_path": "",
         "status": "planning",
     }

@@ -13,6 +13,7 @@ def test_agent_state_keys():
         "feedback": "",
         "iteration": 0,
         "max_iterations": 3,
+        "context": "",
         "report_path": "",
         "status": "planning",
     }

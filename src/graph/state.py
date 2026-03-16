@@ -18,6 +18,7 @@ class AgentState(TypedDict):
         feedback: Critic이 생성한 피드백
         iteration: 현재 루프 반복 횟수
         max_iterations: 최대 루프 반복 횟수
+        context: 프로젝트 컨텍스트 (로컬 프로젝트 정보 주입용)
         report_path: 저장된 리포트 파일 경로
         status: 워크플로우 상태 (planning | executing | reviewing | done | failed)
     """
@@ -29,5 +30,6 @@ class AgentState(TypedDict):
     feedback: str
     iteration: int
     max_iterations: int
+    context: str
     report_path: str
     status: str
