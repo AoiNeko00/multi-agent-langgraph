@@ -6,6 +6,8 @@ threadloom Phase 3(강화 생성)의 LangGraph 재설계 버전.
 
 from __future__ import annotations
 
+from difflib import SequenceMatcher
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
@@ -83,8 +85,49 @@ def enhance(state: AgentState) -> dict:
     messages.append(HumanMessage(content=prompt))
     response = llm.invoke(messages)
 
+    # 의미적 유사도 검사(semantic similarity check)
+    result_with_check = _check_similarity(response.content, pending)
+
     return {
-        "result": response.content,
+        "result": result_with_check,
         "status": "enhancing",
         "messages": state.get("messages", []) + [response],
     }
+
+
+def _check_similarity(proposals: str, pending: str) -> str:
+    """제안과 기존 pending 항목의 유사도를 계산하여 경고를 추가한다.
+
+    SequenceMatcher를 사용하여 텍스트 유사도를 측정하고,
+    임계값(0.6) 이상이면 중복 경고를 삽입한다.
+    """
+    pending_names = _extract_pending_names(pending)
+    if not pending_names:
+        return proposals
+
+    warnings = []
+    for name in pending_names:
+        # 제안 텍스트에서 유사한 이름이 있는지 검사
+        ratio = SequenceMatcher(None, name.lower(), proposals.lower()).ratio()
+        if ratio > 0.6:
+            warnings.append(f"- [유사도 {ratio:.0%}] '{name}'과 중복 가능성")
+
+    if warnings:
+        warning_block = (
+            "\n\n## 중복 경고 (자동 감지)\n"
+            + "\n".join(warnings)
+            + "\n위 항목과 차별화되는지 확인하세요.\n"
+        )
+        return proposals + warning_block
+
+    return proposals
+
+
+def _extract_pending_names(pending_text: str) -> list[str]:
+    """pending 목록에서 파일명을 추출한다."""
+    names = []
+    for line in pending_text.split("\n"):
+        if line.startswith("- **") and "**:" in line:
+            name = line.split("**")[1].replace(".md", "")
+            names.append(name)
+    return names

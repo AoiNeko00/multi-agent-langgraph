@@ -138,10 +138,54 @@ def research(state: AgentState) -> dict:
             f"{state['context']}\n\n---\n\n"
         )
 
-    combined = context_section + "## 웹 검색 결과\n\n" + "\n\n---\n\n".join(search_results)
+    raw_results = context_section + "## 웹 검색 결과\n\n" + "\n\n---\n\n".join(search_results)
+
+    # 2차 LLM 호출: 검색 결과 요약 및 핵심 추출(summarization)
+    summary = _summarize_results(raw_results, state["task"])
 
     return {
-        "result": combined,
+        "result": summary,
         "status": "executing",
         "messages": state.get("messages", []) + [response],
     }
+
+
+def _summarize_results(raw_results: str, task: str) -> str:
+    """검색 결과를 2차 LLM 호출로 요약한다.
+
+    원본 검색 결과에서 핵심 정보만 추출하고,
+    중복 제거 + 신뢰도 분류를 수행한다.
+    """
+    llm = ChatGroq(
+        model=MODEL_STRONG,
+        temperature=0.2,
+        max_tokens=MAX_TOKENS_STRONG,
+    )
+
+    summarize_prompt = f"""/no_think
+You must respond in Korean only. Never use Chinese characters.
+
+아래 검색 결과에서 "{task}" 주제에 관련된 핵심 정보만 추출하세요.
+
+## 규칙
+- 중복 정보는 한 번만 포함
+- 각 정보에 출처 URL을 반드시 포함
+- 신뢰도 분류: [높음] 공식 문서/학술지, [중간] 기술 블로그, [낮음] 포럼/개인
+- 관련 없는 결과는 제외
+
+## 출력 형식
+### 핵심 정보 (신뢰도순)
+
+1. [높음] 정보 내용 (출처: URL)
+2. [중간] 정보 내용 (출처: URL)
+...
+
+### 검색 커버리지
+- 다룬 주제: [나열]
+- 부족한 주제: [나열]
+
+## 검색 결과
+{raw_results[:8000]}"""
+
+    response = llm.invoke([HumanMessage(content=summarize_prompt)])
+    return response.content

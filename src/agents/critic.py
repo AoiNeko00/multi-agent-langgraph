@@ -2,9 +2,13 @@
 
 threadloom Phase 3.5(자동 심사)에 대응하며,
 Executor의 결과물을 검증하고 통과/거부를 판정한다.
+
+LLM 응답에서 점수를 프로그래밍적으로 파싱하여 평균 기반 판정을 수행한다.
 """
 
 from __future__ import annotations
+
+import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
@@ -36,19 +40,19 @@ Your job: verify whether the execution result satisfies the original task requir
 | 정확성 | X | [구체적 근거] |
 | 명확성 | X | [구체적 근거] |
 
-### 판정
-VERDICT: PASS 또는 FAIL
-
 ### 피드백
-FEEDBACK: [FAIL일 경우, 구체적으로 무엇을 어떻게 고쳐야 하는지 번호 매겨 나열]
+FEEDBACK: [구체적으로 무엇을 어떻게 고쳐야 하는지 번호 매겨 나열]
 
 ## Rules
-- Average score >= 3.5 → PASS, otherwise → FAIL
+- DO NOT write VERDICT yourself. The system will calculate it from your scores.
 - FAIL feedback must be actionable: "X를 Y로 변경하세요" not "개선이 필요합니다"
 - Check for hallucinated sources: reject if output contains URLs or references not present in the input data
-- Check for vague fake sources like "~에 대한 논문 및 연구자료" without actual URLs → FAIL
-- Check for Chinese characters in output (reject if found)
+- Check for vague fake sources like "~에 대한 논문 및 연구자료" without actual URLs → score 정확성 1
+- Check for Chinese characters in output → score 명확성 1
 - Never use Chinese characters. Korean and English only."""
+
+PASS_THRESHOLD = 3.5
+CRITERIA = ["완전성", "구체성", "정확성", "명확성"]
 
 
 def create_critic() -> ChatGroq:
@@ -60,8 +64,33 @@ def create_critic() -> ChatGroq:
     )
 
 
+def parse_scores(content: str) -> dict[str, int]:
+    """LLM 응답에서 4항목 점수를 파싱(parsing)한다.
+
+    Returns:
+        {"완전성": 4, "구체성": 3, ...} 형태의 딕셔너리.
+        파싱 실패 시 기본값 3을 사용한다.
+    """
+    scores = {}
+    for criterion in CRITERIA:
+        # "| 완전성 | 4 |" 또는 "| 완전성 | 4점 |" 패턴 매칭
+        pattern = rf"\|\s*{criterion}\s*\|\s*(\d)\s*"
+        match = re.search(pattern, content)
+        scores[criterion] = int(match.group(1)) if match else 3
+
+    return scores
+
+
+def judge_verdict(scores: dict[str, int]) -> bool:
+    """평균 점수(average score)로 PASS/FAIL을 판정한다."""
+    if not scores:
+        return False
+    avg = sum(scores.values()) / len(scores)
+    return avg >= PASS_THRESHOLD
+
+
 def critique(state: AgentState) -> dict:
-    """결과물을 검증하고 판정한다."""
+    """결과물을 검증하고 프로그래밍적으로 판정한다."""
     llm = create_critic()
 
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
@@ -77,12 +106,20 @@ def critique(state: AgentState) -> dict:
     response = llm.invoke(messages)
 
     content = response.content
-    passed = "VERDICT: PASS" in content.upper()
+
+    # 점수 파싱 + 프로그래밍적 판정(programmatic verdict)
+    scores = parse_scores(content)
+    avg_score = sum(scores.values()) / len(scores) if scores else 0
+    passed = judge_verdict(scores)
 
     # 피드백 추출(feedback extraction)
     feedback = ""
     if "FEEDBACK:" in content:
         feedback = content.split("FEEDBACK:", 1)[1].strip()
+
+    # 점수 요약을 피드백에 추가
+    score_summary = " / ".join(f"{k}:{v}" for k, v in scores.items())
+    feedback = f"[점수: {score_summary} | 평균: {avg_score:.1f}/5.0]\n{feedback}"
 
     new_iteration = state.get("iteration", 0) + 1
     max_iter = state.get("max_iterations", 3)

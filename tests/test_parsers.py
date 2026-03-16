@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.agents.critic import parse_scores, judge_verdict
 from src.graph.enhance_workflow import _parse_proposals
 
 
@@ -111,3 +112,46 @@ def test_parse_proposals_max_five():
     result = _parse_proposals(text)
 
     assert len(result) == 5
+
+
+# --- Critic 점수 파싱(score parsing) 테스트 ---
+
+
+def test_parse_scores_standard():
+    """표준 테이블 형식에서 점수를 파싱하는지 확인한다."""
+    content = (
+        "| 기준 | 점수 (1-5) | 근거 |\n"
+        "|------|-----------|------|\n"
+        "| 완전성 | 4 | 좋음 |\n"
+        "| 구체성 | 3 | 보통 |\n"
+        "| 정확성 | 5 | 우수 |\n"
+        "| 명확성 | 4 | 좋음 |\n"
+    )
+    scores = parse_scores(content)
+    assert scores == {"완전성": 4, "구체성": 3, "정확성": 5, "명확성": 4}
+
+
+def test_parse_scores_missing_criterion():
+    """누락된 기준은 기본값 3을 사용하는지 확인한다."""
+    content = "| 완전성 | 5 | 우수 |\n| 구체성 | 4 | 좋음 |\n"
+    scores = parse_scores(content)
+    assert scores["완전성"] == 5
+    assert scores["정확성"] == 3  # 기본값(default)
+
+
+def test_judge_verdict_pass():
+    """평균 3.5 이상이면 PASS인지 확인한다."""
+    scores = {"완전성": 4, "구체성": 4, "정확성": 3, "명확성": 4}
+    assert judge_verdict(scores) is True
+
+
+def test_judge_verdict_fail():
+    """평균 3.5 미만이면 FAIL인지 확인한다."""
+    scores = {"완전성": 2, "구체성": 3, "정확성": 3, "명확성": 3}
+    assert judge_verdict(scores) is False
+
+
+def test_judge_verdict_boundary():
+    """정확히 3.5일 때 PASS인지 확인한다."""
+    scores = {"완전성": 3, "구체성": 4, "정확성": 3, "명확성": 4}
+    assert judge_verdict(scores) is True

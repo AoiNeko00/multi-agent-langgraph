@@ -122,12 +122,16 @@ def test_critic_rejects_and_loops(
         "### 단계 1: 개선\n**산출물:** 개선된 결과물"
     )
 
-    # Critic — 첫 번째 FAIL, 두 번째 PASS
+    # Critic — 첫 번째 FAIL(낮은 점수), 두 번째 PASS(높은 점수)
     fail_resp = _mock_llm_response(
-        "### 판정\nVERDICT: FAIL\nFEEDBACK: 구체성이 부족합니다. 코드를 추가하세요."
+        "| 완전성 | 2 | 부족 |\n| 구체성 | 2 | 부족 |\n"
+        "| 정확성 | 3 | 보통 |\n| 명확성 | 2 | 부족 |\n"
+        "FEEDBACK: 구체성이 부족합니다. 코드를 추가하세요."
     )
     pass_resp = _mock_llm_response(
-        "### 판정\nVERDICT: PASS\nFEEDBACK: 없음"
+        "| 완전성 | 4 | 좋음 |\n| 구체성 | 4 | 좋음 |\n"
+        "| 정확성 | 5 | 우수 |\n| 명확성 | 4 | 좋음 |\n"
+        "FEEDBACK: 없음"
     )
     mock_critic_llm.return_value.invoke.side_effect = [fail_resp, pass_resp]
 
