@@ -1,5 +1,8 @@
 # multi-agent-langgraph
 
+<!-- CI 배지(badge): GitHub username 확정 후 아래 주석을 해제하고 username을 교체하세요 -->
+<!-- ![CI](https://github.com/<username>/multi-agent-langgraph/actions/workflows/ci.yml/badge.svg) -->
+
 > LangGraph 기반 LLM 오케스트레이션 + 프롬프트 엔지니어링 + 품질 관리 시스템
 
 ## 왜 만들었는가?
@@ -206,6 +209,9 @@ python -m src.main --mode enhance --approve "threadloom 강화"           # enha
 # 결과 확인
 ls data/reports/
 cat data/metrics.json  # 성과 지표 누적 기록
+
+# 웹 UI 실행
+streamlit run app.py
 ```
 
 ## LangGraph 고급 기능 활용

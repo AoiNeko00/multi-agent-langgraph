@@ -155,3 +155,45 @@ def test_judge_verdict_boundary():
     """정확히 3.5일 때 PASS인지 확인한다."""
     scores = {"완전성": 3, "구체성": 4, "정확성": 3, "명확성": 4}
     assert judge_verdict(scores) is True
+
+
+# --- Enhancer 유사도 검사(similarity check) 테스트 ---
+
+from src.agents.enhancer import _check_similarity, _extract_pending_names
+
+
+def test_extract_pending_names():
+    """pending 텍스트에서 파일명을 추출하는지 확인한다."""
+    pending = (
+        "## 대기 중인 강화 항목 (3개)\n\n"
+        "- **create_skill_code_review.md**: action_type: create_skill\n"
+        "- **add_rule_max_lines.md**: action_type: add_rule\n"
+        "- **create_agent_security.md**: action_type: create_agent\n"
+    )
+    names = _extract_pending_names(pending)
+    assert len(names) == 3
+    assert "create_skill_code_review" in names
+
+
+def test_check_similarity_no_warning():
+    """유사도가 낮으면 경고가 추가되지 않는지 확인한다."""
+    proposals = "### 제안 1: skill — completely_new_thing\n- 새로운 내용"
+    pending = "- **old_unrelated_stuff.md**: action_type: create_skill"
+    result = _check_similarity(proposals, pending)
+    assert "중복 경고" not in result
+
+
+def test_check_similarity_with_warning():
+    """유사도가 높으면 중복 경고가 추가되는지 확인한다."""
+    proposals = "create_skill_code_review 개선"
+    pending = "- **create_skill_code_review.md**: action_type: create_skill"
+    result = _check_similarity(proposals, pending)
+    assert "중복 경고" in result
+    assert "유사도" in result
+
+
+def test_check_similarity_empty_pending():
+    """pending이 비어있으면 원본을 그대로 반환하는지 확인한다."""
+    proposals = "some proposals"
+    result = _check_similarity(proposals, "대기 중인 강화 항목이 없습니다.")
+    assert result == proposals
