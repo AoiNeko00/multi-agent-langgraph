@@ -7,6 +7,7 @@ import argparse
 from src.config import init_config
 
 from src.agents.memory import save_execution
+from src.graph.enhance_workflow import create_enhance_app
 from src.graph.research_workflow import create_research_app
 from src.graph.workflow import create_app
 
@@ -17,12 +18,13 @@ def run(task: str, max_iterations: int = 3, mode: str = "plan") -> dict:
     Args:
         task: 실행할 작업 설명
         max_iterations: 최대 반복 횟수
-        mode: 워크플로우 모드 ("plan" 또는 "research")
+        mode: 워크플로우 모드 ("plan", "research", "enhance")
     """
-    if mode == "research":
-        app = create_research_app()
-    else:
-        app = create_app()
+    apps = {
+        "research": create_research_app,
+        "enhance": create_enhance_app,
+    }
+    app = apps.get(mode, create_app)()
 
     initial_state = {
         "messages": [],
@@ -58,7 +60,7 @@ def main() -> None:
     parser.add_argument("task", help="실행할 작업 설명")
     parser.add_argument(
         "--mode",
-        choices=["plan", "research"],
+        choices=["plan", "research", "enhance"],
         default="plan",
         help="워크플로우 모드 (기본: plan)",
     )

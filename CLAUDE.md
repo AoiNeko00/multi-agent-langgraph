@@ -20,6 +20,9 @@ Planner → Executor → Critic → (조건부 루프)
 | Planner | 목표 분해, 작업 계획 수립 | Phase 2 (분석) |
 | Executor | 계획 실행, 결과물 생성 | Phase 3 (강화 생성) |
 | Critic | 결과 검증, 품질 게이트 | Phase 3.5 (자동 심사) |
+| Enhancer | threadloom 데이터 → 강화 제안 | Phase 3 (강화 생성) |
+| Researcher | 웹 검색 정보 수집 | Phase 1 (수집) |
+| Reporter | 구조화된 리포트 생성 + 저장 | Phase 4 (적용) |
 | Memory | 컨텍스트 관리, 이력 추적 | 전 Phase 공유 상태 |
 
 ### LangGraph 워크플로우
@@ -41,16 +44,19 @@ src/
 │   ├── executor.py      # 실행 에이전트
 │   ├── critic.py        # 결과 검증 에이전트
 │   ├── researcher.py    # 웹 검색 리서치 에이전트
-│   ├── reporter.py      # 리포트 생성 에이전트
+│   ├── reporter.py      # 리포트 생성 + md 파일 저장
+│   ├── enhancer.py      # threadloom 데이터 기반 강화 제안
 │   └── memory.py        # 컨텍스트 관리
 ├── graph/
 │   ├── state.py         # AgentState 정의
 │   ├── workflow.py      # 기본 워크플로우 (Planner→Executor→Critic)
 │   ├── research_workflow.py  # 리서치 워크플로우 (Researcher→Reporter→Critic)
+│   ├── enhance_workflow.py   # 강화 워크플로우 (Enhancer→Planner→Critic→Reporter)
 │   └── nodes.py         # 노드 함수 정의
 ├── tools/
 │   ├── search.py        # DuckDuckGo 웹 검색 도구
-│   └── file_io.py       # 리포트 파일 I/O 도구
+│   ├── file_io.py       # 리포트 파일 I/O 도구
+│   └── threadloom.py    # threadloom 데이터 로더
 └── main.py              # 진입점
 tests/
 docs/
@@ -79,6 +85,9 @@ python -m src.main "작업 설명"
 
 # 실행 (리서치 모드)
 python -m src.main --mode research "조사할 주제"
+
+# 실행 (강화 모드 — threadloom 연동)
+python -m src.main --mode enhance "강화 주제"
 
 # 테스트
 pytest tests/ -v
