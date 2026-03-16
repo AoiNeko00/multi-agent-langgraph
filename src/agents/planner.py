@@ -11,6 +11,7 @@ from langchain_groq import ChatGroq
 
 from src.config import MAX_TOKENS_STRONG, MODEL_STRONG
 from src.graph.state import AgentState
+from src.tools.report_history import get_recent_reports
 
 
 SYSTEM_PROMPT = """/no_think
@@ -74,6 +75,14 @@ def plan(state: AgentState) -> dict:
 
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
 
+    # 과거 리포트 참조(RAG) 주입
+    history_block = ""
+    recent = get_recent_reports(limit=2)
+    if recent:
+        history_block = (
+            f"## 과거 리포트 (중복 방지 및 연속성 참고용)\n{recent}\n\n"
+        )
+
     # 프로젝트 컨텍스트(context)가 있으면 주입
     context_block = ""
     if state.get("context"):
@@ -85,7 +94,7 @@ def plan(state: AgentState) -> dict:
     # 피드백(feedback)이 있으면 개선 요청으로 변환
     if state.get("feedback"):
         prompt = (
-            f"{context_block}"
+            f"{history_block}{context_block}"
             f"## 작업\n{state['task']}\n\n"
             f"## 이전 계획\n{state.get('plan', '')}\n\n"
             f"## Critic 피드백 (반드시 모두 반영할 것)\n{state['feedback']}\n\n"
@@ -93,7 +102,7 @@ def plan(state: AgentState) -> dict:
         )
     else:
         prompt = (
-            f"{context_block}"
+            f"{history_block}{context_block}"
             f"## 작업\n{state['task']}\n\n위 작업에 대한 실행 계획을 작성하세요."
         )
 

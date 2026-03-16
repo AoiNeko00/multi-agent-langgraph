@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import argparse
 
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
+
 from src.config import init_config
 
 from src.agents.memory import save_execution
@@ -11,6 +15,14 @@ from src.graph.enhance_workflow import create_enhance_app
 from src.graph.research_workflow import create_research_app
 from src.graph.workflow import create_app
 from src.tools.threadloom import load_project_summary
+
+console = Console()
+
+MODE_LABELS = {
+    "plan": "[blue]Plan[/blue]",
+    "research": "[green]Research[/green]",
+    "enhance": "[magenta]Enhance[/magenta]",
+}
 
 
 def run(task: str, max_iterations: int = 3, mode: str = "plan") -> dict:
@@ -32,6 +44,7 @@ def run(task: str, max_iterations: int = 3, mode: str = "plan") -> dict:
     threadloom_keywords = ["threadloom", "4-phase", "4phase", "자기강화"]
     if any(kw in task.lower() for kw in threadloom_keywords):
         context = load_project_summary()
+        console.print("[dim]threadloom 컨텍스트 주입됨[/dim]")
 
     initial_state = {
         "messages": [],
@@ -45,6 +58,9 @@ def run(task: str, max_iterations: int = 3, mode: str = "plan") -> dict:
         "report_path": "",
         "status": "planning",
     }
+
+    label = MODE_LABELS.get(mode, mode)
+    console.print(f"\n{label} 모드 실행 중...", style="bold")
 
     final_state = app.invoke(initial_state)
 
@@ -80,23 +96,29 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    result = run(args.task, args.max_iterations, args.mode)
 
-    print("\n=== 최종 결과 ===")
-    print(f"모드: {args.mode}")
-    print(f"상태: {result['status']}")
-    print(f"반복 횟수: {result['iteration']}")
+    with console.status("[bold]에이전트 실행 중..."):
+        result = run(args.task, args.max_iterations, args.mode)
 
-    if result.get("plan"):
-        print(f"\n계획:\n{result['plan']}")
-
-    print(f"\n결과:\n{result['result']}")
+    # 결과 출력
+    label = MODE_LABELS.get(args.mode, args.mode)
+    console.print(Panel(
+        f"모드: {label}\n"
+        f"상태: [green]{result['status']}[/green]\n"
+        f"반복 횟수: {result['iteration']}",
+        title="실행 완료",
+        border_style="green",
+    ))
 
     if result.get("report_path"):
-        print(f"\n리포트: {result['report_path']}")
+        console.print(f"\n[bold]리포트:[/bold] {result['report_path']}")
 
     if result.get("feedback"):
-        print(f"\n피드백:\n{result['feedback']}")
+        console.print(Panel(
+            result["feedback"][:500],
+            title="Critic 피드백",
+            border_style="yellow",
+        ))
 
 
 if __name__ == "__main__":

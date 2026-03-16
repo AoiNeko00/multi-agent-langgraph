@@ -1,12 +1,15 @@
 """강화 계획(enhancement planning) 워크플로우.
 
-threadloom 분석 데이터 → 강화 제안 → 실행 계획 → 검증 파이프라인.
+threadloom 분석 데이터 → 강화 제안 → 실행 계획 → 검증 → 리포트 → 적용.
 
 워크플로우:
-  [threadloom data] → enhancer → planner → critic → {pass → [출력], fail → enhancer}
+  [threadloom data] → enhancer → planner → critic
+    → {pass → reporter → applier → END, fail → enhancer}
 """
 
 from __future__ import annotations
+
+import re
 
 from langgraph.graph import END, StateGraph
 
@@ -15,6 +18,7 @@ from src.agents.enhancer import enhance
 from src.agents.planner import plan
 from src.agents.reporter import report
 from src.graph.state import AgentState
+from src.tools.threadloom_writer import write_pending_action
 
 
 def enhancer_node(state: AgentState) -> dict:
@@ -23,11 +27,7 @@ def enhancer_node(state: AgentState) -> dict:
 
 
 def planner_node(state: AgentState) -> dict:
-    """Planner 에이전트 노드: 강화 제안을 실행 계획으로 변환.
-
-    enhancer의 result를 plan 입력의 task 컨텍스트로 활용한다.
-    """
-    # enhancer 결과를 planner의 컨텍스트에 주입
+    """Planner 에이전트 노드: 강화 제안을 실행 계획으로 변환."""
     enhanced_state = {
         **state,
         "task": (
@@ -40,7 +40,6 @@ def planner_node(state: AgentState) -> dict:
 
 def reporter_node(state: AgentState) -> dict:
     """Reporter 에이전트 노드: 최종 강화 계획을 리포트로 저장."""
-    # 출처 안내(source guidance)를 명시적으로 포함
     report_state = {
         **state,
         "result": (
@@ -52,6 +51,81 @@ def reporter_node(state: AgentState) -> dict:
         ),
     }
     return report(report_state)
+
+
+def applier_node(state: AgentState) -> dict:
+    """Applier 노드: 강화 제안을 threadloom data/pending/에 저장한다."""
+    result = state.get("result", "")
+    applied = []
+
+    # 제안에서 유형과 이름을 파싱(parsing)하여 pending 파일 생성
+    proposals = _parse_proposals(result)
+    for prop in proposals:
+        msg = write_pending_action.invoke(prop)
+        applied.append(msg)
+
+    applied_summary = "\n".join(applied) if applied else "적용할 강화 항목이 없습니다."
+
+    return {
+        "result": f"{result}\n\n## 적용 결과\n{applied_summary}",
+        "status": "done",
+    }
+
+
+_VALID_TYPES = {"skill", "agent", "rule", "reasoning_rule"}
+_TYPE_MAP = {
+    "skill": "create_skill",
+    "agent": "create_agent",
+    "rule": "add_rule",
+    "reasoning_rule": "add_rule",
+}
+
+
+def _parse_proposals(text: str) -> list[dict]:
+    """강화 제안 텍스트에서 개별 제안을 파싱한다.
+
+    유효한 유형(skill/agent/rule)만 추출하고,
+    출처/비교 등 무관한 섹션은 무시한다.
+    """
+    proposals = []
+
+    # 다양한 형식 지원(format support):
+    #   "### 제안 1: skill — name"
+    #   "### 1. skill — name"
+    #   "### 제안 1: **skill** — **name**"
+    pattern = re.compile(
+        r"###?\s*(?:제안\s*)?\d+[.:]\s*"
+        r"[*`]*(\w+)[*`]*\s*[-—]+\s*[*`]*([^\n*`]+)[*`]*",
+    )
+
+    matches = pattern.findall(text)
+    for action_type_raw, name_raw in matches:
+        action_type_raw = action_type_raw.strip().lower()
+        name_raw = name_raw.strip().strip("`").strip("*")
+
+        # 유효한 유형만 통과(validation)
+        if action_type_raw not in _VALID_TYPES:
+            continue
+
+        action_type = _TYPE_MAP[action_type_raw]
+
+        # 해당 제안의 본문 추출 (다음 제안 또는 ## 섹션까지)
+        name_escaped = re.escape(name_raw)
+        body_match = re.search(
+            rf"{name_escaped}[*`]*\n(.*?)(?=(?:###?\s*(?:제안\s*)?\d|##\s)|\Z)",
+            text,
+            re.DOTALL,
+        )
+        body = body_match.group(1).strip()[:2000] if body_match else ""
+
+        proposals.append({
+            "action_type": action_type,
+            "name": name_raw,
+            "description": name_raw[:100],
+            "content": body,
+        })
+
+    return proposals[:5]
 
 
 def critic_node(state: AgentState) -> dict:
@@ -74,21 +148,23 @@ def build_enhance_workflow() -> StateGraph:
     workflow.add_node("planner", planner_node)
     workflow.add_node("critic", critic_node)
     workflow.add_node("reporter", reporter_node)
+    workflow.add_node("applier", applier_node)
 
     workflow.set_entry_point("enhancer")
     workflow.add_edge("enhancer", "planner")
     workflow.add_edge("planner", "critic")
 
-    # Critic 통과 시 reporter로, 실패 시 enhancer로 루프
     workflow.add_conditional_edges(
         "critic",
         should_continue,
         {
-            "reporter": "reporter",
+            "reporter": "applier",
             "enhancer": "enhancer",
         },
     )
 
+    # Critic 통과 → applier (원본 제안 파싱) → reporter (리포트 저장)
+    workflow.add_edge("applier", "reporter")
     workflow.add_edge("reporter", END)
 
     return workflow
