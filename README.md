@@ -103,7 +103,7 @@ $ python -m src.main --mode research "LangGraph 최신 기능과 아키텍처"
 **문제**: Reporter가 URL 없는 컨텍스트에서 "~에 대한 논문 및 연구자료" 같은 가짜 출처 생성.
 
 **해결**:
-1. Reporter: "URL 없으면 출처 섹션 생략" + 날조 금지 규칙 5개
+1. Reporter: "URL 없으면 출처 섹션 생략" + 날조 금지 규칙 8개
 2. Critic: "가짜 출처 → FAIL" 평가 기준 추가
 3. enhance 워크플로우: "외부 URL 없음" 명시적 전달
 
