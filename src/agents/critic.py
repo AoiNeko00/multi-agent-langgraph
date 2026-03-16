@@ -9,7 +9,7 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
-from src.config import MODEL_REASONING
+from src.config import MAX_TOKENS_REASONING, MODEL_REASONING
 from src.graph.state import AgentState
 
 
@@ -53,7 +53,11 @@ FEEDBACK: [FAIL일 경우, 구체적으로 무엇을 어떻게 고쳐야 하는�
 
 def create_critic() -> ChatGroq:
     """Critic LLM 인스턴스 생성."""
-    return ChatGroq(model=MODEL_REASONING, temperature=0.1)
+    return ChatGroq(
+        model=MODEL_REASONING,
+        temperature=0.1,
+        max_tokens=MAX_TOKENS_REASONING,
+    )
 
 
 def critique(state: AgentState) -> dict:

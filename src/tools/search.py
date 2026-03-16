@@ -1,6 +1,6 @@
 """웹 검색(web search) 도구.
 
-DuckDuckGo를 사용하여 무료로 웹 검색을 수행한다.
+ddgs(DuckDuckGo Search)를 사용하여 무료로 웹 검색을 수행한다.
 """
 
 from __future__ import annotations
@@ -19,10 +19,9 @@ def web_search(query: str, max_results: int = 5) -> str:
     Returns:
         검색 결과를 포맷팅한 문자열
     """
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
 
     with DDGS() as ddgs:
-        # 영어권 결과 우선(region) 설정
         results = list(ddgs.text(
             query,
             region="us-en",

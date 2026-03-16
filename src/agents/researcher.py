@@ -9,7 +9,7 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
-from src.config import MODEL_STRONG
+from src.config import MAX_TOKENS_STRONG, MODEL_STRONG
 from src.graph.state import AgentState
 from src.tools.search import web_search
 
@@ -49,7 +49,11 @@ Your job: search the web for information on the given topic and compile findings
 
 def create_researcher() -> ChatGroq:
     """Researcher LLM 인스턴스 생성."""
-    return ChatGroq(model=MODEL_STRONG, temperature=0.3)
+    return ChatGroq(
+        model=MODEL_STRONG,
+        temperature=0.3,
+        max_tokens=MAX_TOKENS_STRONG,
+    )
 
 
 def research(state: AgentState) -> dict:
@@ -61,7 +65,9 @@ def research(state: AgentState) -> dict:
 
     prompt = (
         f"다음 주제를 조사하세요: {state['task']}\n\n"
-        f"반드시 영어로 검색 쿼리를 작성하고, web_search 도구를 호출하세요."
+        f"반드시 영어로 3개 이상의 검색 쿼리를 작성하고, "
+        f"각각 web_search 도구를 호출하세요.\n"
+        f"다양한 관점(개념, 비교, 실사례)에서 검색하세요."
     )
     messages.append(HumanMessage(content=prompt))
 
@@ -76,11 +82,17 @@ def research(state: AgentState) -> dict:
                 query = tool_call["args"].get("query", "")
                 search_results.append(f"### Query: {query}\n\n{result}")
 
-    # 검색 결과가 없으면 직접 영어 쿼리로 검색
-    if not search_results:
-        fallback_query = state["task"].replace("조사", "").strip()
-        result = web_search.invoke({"query": fallback_query, "max_results": 5})
-        search_results.append(f"### Fallback Query: {fallback_query}\n\n{result}")
+    # 검색 결과가 부족하면 다각도 영어 쿼리로 보충
+    if len(search_results) < 2:
+        task = state["task"]
+        queries = [
+            f"{task} overview features",
+            f"{task} vs alternatives comparison 2026",
+            f"{task} tutorial example",
+        ]
+        for q in queries:
+            result = web_search.invoke({"query": q, "max_results": 5})
+            search_results.append(f"### Auto Query: {q}\n\n{result}")
 
     combined = "## 검색 결과\n\n" + "\n\n---\n\n".join(search_results)
 

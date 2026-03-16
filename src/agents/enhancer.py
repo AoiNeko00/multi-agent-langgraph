@@ -9,7 +9,7 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
-from src.config import MODEL_STRONG
+from src.config import MAX_TOKENS_STRONG, MODEL_STRONG
 from src.graph.state import AgentState
 from src.tools.threadloom import load_analyses, load_pending_actions
 
@@ -56,7 +56,11 @@ for the AI agent system.
 
 def create_enhancer() -> ChatGroq:
     """Enhancer LLM 인스턴스 생성."""
-    return ChatGroq(model=MODEL_STRONG, temperature=0.3)
+    return ChatGroq(
+        model=MODEL_STRONG,
+        temperature=0.3,
+        max_tokens=MAX_TOKENS_STRONG,
+    )
 
 
 def enhance(state: AgentState) -> dict:

@@ -9,7 +9,7 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
-from src.config import MODEL_STRONG
+from src.config import MAX_TOKENS_STRONG, MODEL_STRONG
 from src.graph.state import AgentState
 
 
@@ -29,17 +29,31 @@ Your job: decompose a given task into a concrete, actionable step-by-step plan.
 
 ### 실행 계획
 
-| # | 단계 | 산출물 | 검증 방법 |
-|---|------|--------|----------|
-| 1 | [구체적 행동] | [만들어지는 것] | [완료 확인 방법] |
-| 2 | ... | ... | ... |
+For each step, provide ALL of the following in detail:
 
-### 리스크
-- [실패 가능성과 대응 방안]
+#### 단계 1: [구체적 행동]
+- **설명**: [이 단계에서 정확히 무엇을 하는지 3-5문장으로 상세히 설명]
+- **산출물**: [만들어지는 구체적 파일, 코드, 문서 등]
+- **검증 방법**: [완료 확인 방법 — 실행 명령어, 테스트 케이스 등]
+- **예상 소요 시간**: [시간 단위]
+- **의존성**: [이전 단계 중 선행되어야 하는 것]
+
+#### 단계 2: ...
+(repeat for all steps)
+
+### 리스크 분석
+
+| # | 리스크 | 발생 확률 | 영향도 | 대응 방안 |
+|---|--------|----------|--------|----------|
+| 1 | [구체적 리스크] | 높음/중간/낮음 | 높음/중간/낮음 | [구체적 대응] |
+
+### 대안 계획
+[주 계획 실패 시 대안 접근법 1-2가지 제시]
 
 ## Rules
-- Maximum 5 steps
+- Maximum 7 steps
 - Each step must produce a verifiable output
+- Write as much detail as possible. Use the full output capacity.
 - If previous feedback exists, address every point explicitly
 - Be specific: "Flask로 /users GET 엔드포인트 구현" not "API 구현"
 - Never use Chinese characters. Korean and English only."""
@@ -47,7 +61,11 @@ Your job: decompose a given task into a concrete, actionable step-by-step plan.
 
 def create_planner() -> ChatGroq:
     """Planner LLM 인스턴스 생성."""
-    return ChatGroq(model=MODEL_STRONG, temperature=0.3)
+    return ChatGroq(
+        model=MODEL_STRONG,
+        temperature=0.3,
+        max_tokens=MAX_TOKENS_STRONG,
+    )
 
 
 def plan(state: AgentState) -> dict:

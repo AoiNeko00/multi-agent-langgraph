@@ -24,10 +24,13 @@ def init_config() -> None:
 
 
 # Groq 모델(model) 설정
-# 분석·생성: Qwen3 32B (한국어 우수, 662 TPS)
-# 검증: Llama 3.3 70B (최고 추론 품질)
-# 경량 작업: Llama 3.1 8B (빠른 속도)
 MODEL_STRONG = "qwen/qwen3-32b"
 MODEL_REASONING = "llama-3.3-70b-versatile"
 MODEL_FAST = "llama-3.1-8b-instant"
+
+# 모델별 최대 출력 토큰(max completion tokens)
+MAX_TOKENS_STRONG = 40_960      # qwen3-32b
+MAX_TOKENS_REASONING = 32_768   # llama-3.3-70b
+MAX_TOKENS_FAST = 131_072       # llama-3.1-8b
+
 MAX_ITERATIONS = 3

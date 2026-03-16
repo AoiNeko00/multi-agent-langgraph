@@ -11,7 +11,7 @@ from datetime import datetime
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
-from src.config import MODEL_STRONG
+from src.config import MAX_TOKENS_STRONG, MODEL_STRONG
 from src.graph.state import AgentState
 from src.tools.file_io import save_report
 
@@ -42,13 +42,19 @@ Your job: synthesize collected information into a well-structured, insightful re
 | 2 | ... | ... |
 
 ## 상세 분석
-[수집된 데이터를 바탕으로 분석. 각 단락은 하나의 논점만 다룸]
+[수집된 데이터를 바탕으로 깊이 있는 분석. 각 단락은 하나의 논점만 다루되,
+ 그 논점을 충분히 설명. 최소 3-5개 논점을 다룰 것.
+ 각 논점마다 데이터에서 도출한 근거를 명시.]
+
+## 비교 분석 (해당 시)
+[대안, 경쟁 기술, 다른 접근법과의 비교표 포함]
 
 ## 한계 및 추가 조사 필요 사항
-- [이 리포트에서 다루지 못한 것]
+- [이 리포트에서 다루지 못한 것 — 구체적으로]
+- [추가 조사가 필요한 질문들]
 
-## 결론
-[3문장 이내. 핵심 시사점과 다음 행동 권고]
+## 결론 및 권고
+[핵심 시사점 요약 + 구체적인 다음 행동 3가지 권고]
 
 ## 출처
 [수집된 데이터에 실제 URL이 있는 경우에만 이 섹션을 포함하고 해당 URL을 나열.
@@ -60,12 +66,18 @@ Your job: synthesize collected information into a well-structured, insightful re
 - NEVER add claims like "~에 대한 논문 및 연구자료" without an actual URL.
 - If you cannot verify a source, write "[출처 미확인]" instead of making one up.
 - Never use Chinese characters. Korean and English only.
-- Do not repeat the same information in different sections."""
+- Do not repeat the same information in different sections.
+- Write as much detail as possible. Use the full output capacity.
+- Aim for a comprehensive, publication-quality report."""
 
 
 def create_reporter() -> ChatGroq:
     """Reporter LLM 인스턴스 생성."""
-    return ChatGroq(model=MODEL_STRONG, temperature=0.4)
+    return ChatGroq(
+        model=MODEL_STRONG,
+        temperature=0.4,
+        max_tokens=MAX_TOKENS_STRONG,
+    )
 
 
 def report(state: AgentState) -> dict:
