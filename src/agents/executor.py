@@ -9,21 +9,39 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
+from src.config import MODEL_STRONG
 from src.graph.state import AgentState
 
 
-SYSTEM_PROMPT = """당신은 실행 전문가입니다.
-주어진 계획을 단계별로 수행하고 구체적인 결과물을 생성하세요.
+SYSTEM_PROMPT = """/no_think
+You are an execution expert. You must respond in Korean only.
 
-규칙:
-- 계획의 각 단계를 빠짐없이 수행하세요
-- 결과물은 구체적이고 즉시 활용 가능해야 합니다
-- 불확실한 부분은 명시적으로 표기하세요"""
+Your job: execute each step of the given plan and produce concrete deliverables.
+
+## Rules
+- Address every step in the plan. Do not skip any.
+- For each step, provide the actual deliverable (code, config, text, etc.)
+- Mark uncertain parts with "[불확실] 이유: ..."
+- Use specific names, values, and examples. Never be vague.
+- If the plan mentions code, write actual runnable code, not pseudocode.
+- Never use Chinese characters. Korean and English only.
+
+## Output Format
+
+### 단계 1: [단계명]
+**산출물:**
+[구체적인 결과물]
+
+### 단계 2: [단계명]
+**산출물:**
+[구체적인 결과물]
+
+..."""
 
 
-def create_executor(model_name: str = "llama-3.1-8b-instant") -> ChatGroq:
+def create_executor() -> ChatGroq:
     """Executor LLM 인스턴스 생성."""
-    return ChatGroq(model=model_name, temperature=0.5)
+    return ChatGroq(model=MODEL_STRONG, temperature=0.4)
 
 
 def execute(state: AgentState) -> dict:
@@ -33,9 +51,9 @@ def execute(state: AgentState) -> dict:
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
 
     prompt = (
-        f"작업: {state['task']}\n\n"
-        f"실행 계획:\n{state['plan']}\n\n"
-        f"위 계획을 실행하고 결과물을 생성하세요."
+        f"## 원래 작업\n{state['task']}\n\n"
+        f"## 실행할 계획\n{state['plan']}\n\n"
+        f"위 계획의 각 단계를 실행하고 구체적인 결과물을 생성하세요."
     )
 
     messages.append(HumanMessage(content=prompt))

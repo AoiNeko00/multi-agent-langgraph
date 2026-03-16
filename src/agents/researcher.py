@@ -9,25 +9,47 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
+from src.config import MODEL_STRONG
 from src.graph.state import AgentState
 from src.tools.search import web_search
 
 
-SYSTEM_PROMPT = """당신은 리서치 전문가입니다.
-주어진 주제에 대해 웹 검색 도구를 사용하여 정보를 수집하고 분석하세요.
+SYSTEM_PROMPT = """/no_think
+You are a research specialist. You must respond in Korean only.
 
-사용 가능한 도구:
-- web_search: 웹에서 정보를 검색합니다
+Your job: search the web for information on the given topic and compile findings.
 
-규칙:
-- 핵심 정보를 빠짐없이 수집하세요
-- 출처를 명시하세요
-- 사실과 의견을 구분하세요"""
+## Rules
+- Use the web_search tool to find information
+- IMPORTANT: Always write search queries in English for better results
+  Example: topic "LangGraph 최신 기능" → search query "LangGraph latest features 2026"
+- Collect information from at least 2-3 different search queries for comprehensive coverage
+- Clearly distinguish facts from opinions
+- Include source URLs for every claim
+- Never use Chinese characters. Korean and English only.
+
+## Output Format
+
+### 검색 쿼리
+1. "[사용한 영어 검색어]"
+2. "[사용한 영어 검색어]"
+
+### 수집된 정보
+
+#### [주제 1]
+- [사실/발견] (출처: URL)
+- [사실/발견] (출처: URL)
+
+#### [주제 2]
+- ...
+
+### 핵심 요약
+[3-5문장으로 핵심 요약]"""
 
 
-def create_researcher(model_name: str = "llama-3.1-8b-instant") -> ChatGroq:
+def create_researcher() -> ChatGroq:
     """Researcher LLM 인스턴스 생성."""
-    return ChatGroq(model=model_name, temperature=0.3)
+    return ChatGroq(model=MODEL_STRONG, temperature=0.3)
 
 
 def research(state: AgentState) -> dict:
@@ -37,20 +59,30 @@ def research(state: AgentState) -> dict:
 
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
 
-    prompt = f"다음 주제를 조사하세요: {state['task']}"
+    prompt = (
+        f"다음 주제를 조사하세요: {state['task']}\n\n"
+        f"반드시 영어로 검색 쿼리를 작성하고, web_search 도구를 호출하세요."
+    )
     messages.append(HumanMessage(content=prompt))
 
     response = llm_with_tools.invoke(messages)
 
     # 도구 호출(tool call)이 있으면 실행
-    search_results = ""
+    search_results = []
     if response.tool_calls:
         for tool_call in response.tool_calls:
             if tool_call["name"] == "web_search":
-                search_results = web_search.invoke(tool_call["args"])
+                result = web_search.invoke(tool_call["args"])
+                query = tool_call["args"].get("query", "")
+                search_results.append(f"### Query: {query}\n\n{result}")
 
-    # 검색 결과를 상태에 저장
-    combined = f"## 검색 결과\n\n{search_results}" if search_results else ""
+    # 검색 결과가 없으면 직접 영어 쿼리로 검색
+    if not search_results:
+        fallback_query = state["task"].replace("조사", "").strip()
+        result = web_search.invoke({"query": fallback_query, "max_results": 5})
+        search_results.append(f"### Fallback Query: {fallback_query}\n\n{result}")
+
+    combined = "## 검색 결과\n\n" + "\n\n---\n\n".join(search_results)
 
     return {
         "result": combined,

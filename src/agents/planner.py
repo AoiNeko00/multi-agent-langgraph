@@ -9,26 +9,45 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
+from src.config import MODEL_STRONG
 from src.graph.state import AgentState
 
 
-SYSTEM_PROMPT = """당신은 작업 계획 전문가입니다.
-주어진 작업을 구체적이고 실행 가능한 단계별 계획으로 분해하세요.
+SYSTEM_PROMPT = """/no_think
+You are a task planning expert. You must respond in Korean only.
 
-규칙:
-- 각 단계는 독립적으로 검증 가능해야 합니다
-- 단계는 5개 이하로 유지하세요
-- 이전 피드백이 있다면 반드시 반영하세요
+Your job: decompose a given task into a concrete, actionable step-by-step plan.
 
-출력 형식:
-1. [단계] - [검증 방법]
-2. [단계] - [검증 방법]
-..."""
+## Output Format (strictly follow this)
+
+### 목표
+[한 문장으로 최종 목표 정의]
+
+### 전제 조건
+- [이 계획이 전제하는 가정 1]
+- [가정 2]
+
+### 실행 계획
+
+| # | 단계 | 산출물 | 검증 방법 |
+|---|------|--------|----------|
+| 1 | [구체적 행동] | [만들어지는 것] | [완료 확인 방법] |
+| 2 | ... | ... | ... |
+
+### 리스크
+- [실패 가능성과 대응 방안]
+
+## Rules
+- Maximum 5 steps
+- Each step must produce a verifiable output
+- If previous feedback exists, address every point explicitly
+- Be specific: "Flask로 /users GET 엔드포인트 구현" not "API 구현"
+- Never use Chinese characters. Korean and English only."""
 
 
-def create_planner(model_name: str = "llama-3.1-8b-instant") -> ChatGroq:
+def create_planner() -> ChatGroq:
     """Planner LLM 인스턴스 생성."""
-    return ChatGroq(model=model_name, temperature=0.3)
+    return ChatGroq(model=MODEL_STRONG, temperature=0.3)
 
 
 def plan(state: AgentState) -> dict:
@@ -40,13 +59,13 @@ def plan(state: AgentState) -> dict:
     # 피드백(feedback)이 있으면 개선 요청으로 변환
     if state.get("feedback"):
         prompt = (
-            f"작업: {state['task']}\n\n"
-            f"이전 계획: {state.get('plan', '')}\n\n"
-            f"피드백: {state['feedback']}\n\n"
-            f"피드백을 반영하여 계획을 수정하세요."
+            f"## 작업\n{state['task']}\n\n"
+            f"## 이전 계획\n{state.get('plan', '')}\n\n"
+            f"## Critic 피드백 (반드시 모두 반영할 것)\n{state['feedback']}\n\n"
+            f"피드백의 각 지적사항을 하나씩 해결하여 계획을 수정하세요."
         )
     else:
-        prompt = f"작업: {state['task']}\n\n단계별 실행 계획을 작성하세요."
+        prompt = f"## 작업\n{state['task']}\n\n위 작업에 대한 실행 계획을 작성하세요."
 
     messages.append(HumanMessage(content=prompt))
     response = llm.invoke(messages)

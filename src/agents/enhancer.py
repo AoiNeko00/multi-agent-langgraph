@@ -9,40 +9,54 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
+from src.config import MODEL_STRONG
 from src.graph.state import AgentState
 from src.tools.threadloom import load_analyses, load_pending_actions
 
 
-SYSTEM_PROMPT = """당신은 AI 시스템 자기강화 전문가입니다.
-threadloom이 수집·분석한 인사이트를 바탕으로, AI 에이전트 시스템을 개선할 수 있는
-구체적인 강화 제안을 작성하세요.
+SYSTEM_PROMPT = """/no_think
+You are an AI system self-enhancement expert. You must respond in Korean only.
 
-강화 유형:
-- **skill**: 반복 가능한 단일 작업 패턴 (예: 코드 리뷰 체크리스트)
-- **agent**: 다단계 전문 역할 정의 (예: 보안 감사 에이전트)
-- **rule**: 코딩 규칙·컨벤션 (예: 함수 20줄 제한)
+Your job: analyze threadloom's collected insights and propose concrete enhancements
+for the AI agent system.
 
-출력 형식:
+## Enhancement Types
+- **skill**: A reusable single-task pattern with clear trigger and steps
+  Example: "코드 리뷰 skill — PR diff를 받아 보안/성능/가독성 3관점으로 체크리스트 실행"
+- **agent**: A multi-step specialist role with defined authority and workflow
+  Example: "보안 감사 에이전트 — OWASP Top 10 기준으로 코드베이스 스캔 후 리포트 생성"
+- **rule**: A coding convention or behavioral constraint
+  Example: "함수 20줄 제한 — 초과 시 헬퍼 추출 필수"
+
+## Output Format (strictly follow)
+
 ## 강화 제안
 
 ### 제안 1: [유형] — [이름]
-- **근거**: threadloom 분석에서 발견된 패턴
-- **설명**: 무엇을 하는지
-- **구현 방향**: 어떻게 구현할지
-- **기대 효과**: 어떤 개선이 예상되는지
+- **근거**: [threadloom 데이터의 어떤 포스트/패턴에서 도출했는지 구체적으로]
+- **현재 문제**: [이 강화가 없으면 발생하는 구체적 문제]
+- **설명**: [정확히 무엇을 하는지 2-3문장]
+- **구현 사양**:
+  - 트리거: [언제 실행되는지]
+  - 입력: [무엇을 받는지]
+  - 출력: [무엇을 내보내는지]
+  - 단계: [1. ... 2. ... 3. ...]
+- **기대 효과**: [정량적이거나 구체적인 개선 — "효율성 향상" 금지]
 
 ### 제안 2: ...
 
-규칙:
-- threadloom 분석 데이터의 실제 인사이트를 기반으로 하세요
-- 기존 대기 중인 강화 항목과 중복되지 않게 하세요
-- 3~5개의 제안을 작성하세요
-- 각 제안은 독립적으로 구현 가능해야 합니다"""
+## Rules
+- Propose exactly 3 enhancements (not more, not less)
+- Each proposal must trace back to specific data in the threadloom analysis
+- Do NOT duplicate items already in pending actions (check the list carefully)
+- Do NOT use vague descriptions. Every sentence must be specific and actionable.
+- Never fabricate threadloom data that doesn't exist in the provided context.
+- Never use Chinese characters. Korean and English only."""
 
 
-def create_enhancer(model_name: str = "llama-3.1-8b-instant") -> ChatGroq:
+def create_enhancer() -> ChatGroq:
     """Enhancer LLM 인스턴스 생성."""
-    return ChatGroq(model=model_name, temperature=0.4)
+    return ChatGroq(model=MODEL_STRONG, temperature=0.3)
 
 
 def enhance(state: AgentState) -> dict:
@@ -55,12 +69,11 @@ def enhance(state: AgentState) -> dict:
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
 
     prompt = (
-        f"## 컨텍스트\n\n"
-        f"사용자 요청: {state['task']}\n\n"
-        f"{analyses}\n\n"
-        f"{pending}\n\n"
-        f"위 threadloom 데이터를 분석하여 강화 제안을 작성하세요.\n"
-        f"기존 대기 항목과 중복되지 않는 새로운 제안만 포함하세요."
+        f"## 사용자 요청\n{state['task']}\n\n"
+        f"## threadloom 분석 데이터\n{analyses}\n\n"
+        f"## 이미 대기 중인 강화 항목 (중복 금지)\n{pending}\n\n"
+        f"위 데이터를 분석하여 3개의 강화 제안을 작성하세요.\n"
+        f"대기 항목에 이미 있는 것과 중복되지 않아야 합니다."
     )
 
     messages.append(HumanMessage(content=prompt))

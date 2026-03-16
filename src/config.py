@@ -24,6 +24,10 @@ def init_config() -> None:
 
 
 # Groq 모델(model) 설정
-DEFAULT_MODEL = "llama-3.1-8b-instant"
-FALLBACK_MODEL = "mixtral-8x7b-32768"
+# 분석·생성: Qwen3 32B (한국어 우수, 662 TPS)
+# 검증: Llama 3.3 70B (최고 추론 품질)
+# 경량 작업: Llama 3.1 8B (빠른 속도)
+MODEL_STRONG = "qwen/qwen3-32b"
+MODEL_REASONING = "llama-3.3-70b-versatile"
+MODEL_FAST = "llama-3.1-8b-instant"
 MAX_ITERATIONS = 3
