@@ -50,6 +50,7 @@ def test_should_continue_done():
         "feedback": "",
         "iteration": 1,
         "max_iterations": 3,
+        "report_path": "",
         "status": "done",
     }
     assert should_continue(state) == "end"
@@ -65,6 +66,7 @@ def test_should_continue_reviewing():
         "feedback": "개선 필요",
         "iteration": 1,
         "max_iterations": 3,
+        "report_path": "",
         "status": "reviewing",
     }
     assert should_continue(state) == "planner"

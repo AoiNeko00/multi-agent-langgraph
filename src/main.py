@@ -32,6 +32,7 @@ def run(task: str, max_iterations: int = 3, mode: str = "plan") -> dict:
         "feedback": "",
         "iteration": 0,
         "max_iterations": max_iterations,
+        "report_path": "",
         "status": "planning",
     }
 
@@ -80,6 +81,9 @@ def main() -> None:
         print(f"\n계획:\n{result['plan']}")
 
     print(f"\n결과:\n{result['result']}")
+
+    if result.get("report_path"):
+        print(f"\n리포트: {result['report_path']}")
 
     if result.get("feedback"):
         print(f"\n피드백:\n{result['feedback']}")

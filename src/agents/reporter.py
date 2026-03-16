@@ -5,6 +5,9 @@
 
 from __future__ import annotations
 
+import re
+from datetime import datetime
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
@@ -56,8 +59,19 @@ def report(state: AgentState) -> dict:
     messages.append(HumanMessage(content=prompt))
     response = llm.invoke(messages)
 
+    # 파일명 생성: 작업 요약 + 타임스탬프(timestamp)
+    slug = re.sub(r"[^\w가-힣]", "_", state["task"])[:40].strip("_")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{slug}_{timestamp}.md"
+
+    save_result = save_report.invoke({
+        "filename": filename,
+        "content": response.content,
+    })
+
     return {
         "result": response.content,
+        "report_path": save_result,
         "status": "reporting",
         "messages": state.get("messages", []) + [response],
     }
