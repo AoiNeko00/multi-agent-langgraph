@@ -201,9 +201,11 @@ cp .env.example .env
 python -m src.main "Python FastAPI 인증 시스템 설계"                    # plan
 python -m src.main --mode research "LangGraph 최신 기능"                # research
 python -m src.main --mode enhance "threadloom 기반 강화 계획"           # enhance
+python -m src.main --mode enhance --approve "threadloom 강화"           # enhance + 승인 흐름
 
 # 결과 확인
 ls data/reports/
+cat data/metrics.json  # 성과 지표 누적 기록
 ```
 
 ## LangGraph 고급 기능 활용
