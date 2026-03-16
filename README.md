@@ -1,47 +1,183 @@
 # multi-agent-langgraph
 
-LangGraph 기반 멀티에이전트 오케스트레이션 시스템.
-threadloom의 4-Phase 자기강화 파이프라인을 멀티에이전트 아키텍처로 재설계했습니다.
+> LLM이 스스로 자신을 개선하는 멀티에이전트 시스템
+
+## 왜 만들었는가?
+
+[threadloom](https://github.com/) 프로젝트는 Threads 저장 포스트에서 유용한 패턴을 자동 발견하고, AI가 자신의 skills/agents/rules를 생성하는 4단계 자기강화 파이프라인입니다.
+
+그런데 threadloom은 **수집과 분석**은 잘 하지만, "수집된 인사이트로 **무엇을 할지 판단**"하는 부분이 없었습니다. 사람이 직접 리뷰하고 적용해야 했습니다.
+
+이 프로젝트는 그 **판단하는 두뇌** 역할을 합니다:
+
+```
+threadloom (눈과 귀)                    이 프로젝트 (두뇌)
+  Threads 포스트 수집                      수집된 인사이트 분석
+  패턴 발견                                강화 방안 제안
+  data/analysis/ 출력     ─────→          실행 계획 수립
+                          ←─────          threadloom에 자동 적용
+```
+
+**비용: $0** (Groq 무료 티어)
+
+---
+
+## 데모: 실제 실행 결과
+
+### Enhance 모드 — threadloom 자기강화
+
+```bash
+$ python -m src.main --mode enhance "threadloom 분석 기반 자기강화"
+```
+
+```
+threadloom 컨텍스트 주입됨
+Enhance 모드 실행 중...
+╭──────────────── 실행 완료 ────────────────╮
+│ 모드: Enhance                              │
+│ 상태: done                                 │
+│ 반복 횟수: 1                               │
+╰────────────────────────────────────────────╯
+리포트: data/reports/threadloom_분석_기반_자기강화_20260316_220953.md
+```
+
+**실제 결과**: threadloom의 `data/pending/`에 3개 강화 항목 자동 생성됨:
+
+```
+data/pending/
+├── create_skill_code_governance_heuristic_audit.md   ← NEW
+├── add_rule_token_budget_for_skill_descriptions.md   ← NEW
+├── create_agent_code_compact_instruction_agent.md    ← NEW
+├── (기존 7개 파일...)
+```
+
+### Research 모드 — 기술 조사
+
+```bash
+$ python -m src.main --mode research "LangGraph 최신 기능과 아키텍처"
+```
+
+생성된 리포트에서 발췌:
+
+```markdown
+## 주요 발견
+| # | 발견 | 근거 |
+|---|------|------|
+| 1 | LangGraph는 템플릿 기반 AI 애플리케이션 개발 지원 | geeky-gadgets.com |
+| 2 | LangChain V2 고급 기능과 통합 | geeky-gadgets.com |
+| 3 | Thoughtworks가 가벼운 설계와 모듈성 평가 | thoughtworks.com |
+
+## 출처
+1. https://www.geeky-gadgets.com/langgraph-templates/
+2. https://www.thoughtworks.com/en-th/radar/languages-and-frameworks/langgraph
+3. https://blog.langchain.com/langchain-langgraph-1dot0/
+(... 14개 영어권 소스)
+```
+
+---
+
+## 기술적 도전과 해결 과정
+
+이 프로젝트를 만들면서 해결한 5가지 핵심 문제입니다.
+상세 기록: [docs/decisions.md](docs/decisions.md)
+
+### 1. LLM 출력 품질 문제 → 모델 역할 분리
+
+**문제**: 8B 모델(llama-3.1-8b)로 생성한 리포트에 한자 혼입, 동어반복, 출처 날조 발생.
+
+**해결**: 모델별 역할 분리 + 프롬프트 전면 강화.
+- 분석/생성: `qwen3-32b` (한국어 우수)
+- 검증: `llama-3.3-70b` (추론 강화)
+- 영어 시스템 프롬프트 + `/no_think` + 구조화된 출력 포맷
+
+### 2. 출처 날조 (Hallucination) → 3단계 방어
+
+**문제**: Reporter가 URL 없는 컨텍스트에서 "~에 대한 논문 및 연구자료" 같은 가짜 출처 생성.
+
+**해결**:
+1. Reporter: "URL 없으면 출처 섹션 생략" + 날조 금지 규칙 5개
+2. Critic: "가짜 출처 → FAIL" 평가 기준 추가
+3. enhance 워크플로우: "외부 URL 없음" 명시적 전달
+
+### 3. 검색 결과 중국어만 반환 → 검색 엔진 교체
+
+**문제**: `duckduckgo-search` 패키지가 `region="us-en"`을 무시하고 zhihu.com만 반환.
+
+**시도**: region 파라미터 → 제외 연산자 → 도메인 필터링 → googlesearch-python → 모두 실패.
+
+**해결**: `ddgs` 패키지(후속 버전)로 교체 → 영어권 결과 정상 반환.
+
+### 4. 로컬 프로젝트 "동명이인" 문제 → 컨텍스트 주입
+
+**문제**: "threadloom"을 웹 검색하면 동명의 SaaS 회사가 나옴. 우리 프로젝트와 무관한 리포트 생성.
+
+**해결**: 프로젝트 컨텍스트 자동 주입 + 검색 쿼리를 핵심 기술 키워드로 변환.
+
+### 5. 강화 제안 파싱 실패 → 워크플로우 순서 변경
+
+**문제**: `reporter → applier` 순서에서 Reporter가 Enhancer의 원본 형식을 재작성하여 파싱 불가.
+
+**해결**: `critic → applier → reporter`로 순서 변경. Applier가 원본 제안을 먼저 파싱.
+
+---
+
+## Before / After
+
+### 리포트 품질 비교
+
+| 항목 | Before (8B, 초기) | After (32B/70B, 최종) |
+|------|-------------------|----------------------|
+| 한자 혼입 | `Chain (链)` 반복 출현 | 0건 |
+| 동어반복 | 4개 섹션이 같은 문장 | 각 섹션 독립적 내용 |
+| 리포트 길이 | ~20줄 | 70줄+ |
+| 출처 | zhihu.com 5개 (중국어) | 14개 영어권 소스 |
+| 출처 날조 | "~에 대한 논문 및 연구자료" | 0건 |
+| 구체성 | "효율성이 향상" 반복 | "리뷰 시간 30% 절약, 토큰 15% 감소" |
+| Critic 평가 | PASS/FAIL만 | 4항목 점수제 + 실행 가능한 피드백 |
+| threadloom 인식 | 동명 SaaS 회사를 분석 | 실제 프로젝트 4-Phase 정확 분석 |
+
+### threadloom 적용 비교
+
+| 항목 | Before | After |
+|------|--------|-------|
+| 결과물 | 터미널 출력만 | `data/reports/`에 마크다운 저장 |
+| threadloom 연동 | 없음 | `data/pending/`에 강화 항목 자동 생성 |
+| 컨텍스트 | 없음 | 프로젝트 아키텍처 자동 주입 |
+| 과거 참조 | 없음 | RAG로 최근 리포트 참조 |
+
+---
 
 ## 아키텍처
 
 ```
 사용자 입력
     │
-    ├─ plan ──→ [Planner] → [Executor] → [Critic] ─→ [Reporter] → 리포트.md
-    │                ↑                        │
-    │                └── FAIL: 피드백 반영 ────┘
+    ├─ plan ──→ Planner → Executor → Critic ──→ Reporter → 리포트.md
+    │              ↑                    │
+    │              └── FAIL ────────────┘
     │
-    ├─ research → [Researcher] → [Reporter] → [Critic] ─→ 리포트.md
-    │                  ↑                          │
-    │                  └── FAIL: 재검색 ──────────┘
+    ├─ research → Researcher → Reporter → Critic ──→ 리포트.md
+    │                ↑                       │
+    │                └── FAIL ───────────────┘
     │
-    └─ enhance ─→ [Enhancer] → [Planner] → [Critic] ─→ [Reporter] → 리포트.md
-                       ↑                       │
-                       └── FAIL: 재제안 ────────┘
+    └─ enhance ─→ Enhancer → Planner → Critic ──→ Applier → Reporter → 리포트.md
+                      ↑                   │          │
+                      └── FAIL ───────────┘          └→ threadloom/data/pending/
 ```
 
-### threadloom과의 관계
-
-```
-threadloom (눈과 귀)                multi-agent-langgraph (두뇌)
-  Threads 포스트 수집    ─────→     enhance: 분석 데이터 → 강화 제안
-  패턴 발견·분석                     plan: 마이그레이션 계획 수립
-  data/analysis/ 출력               research: 관련 기술 조사
-                         ←─────     강화 제안을 data/pending/에 저장
-```
-
-## 에이전트 구성
+### 에이전트 구성
 
 | 에이전트 | 모델 | 역할 |
 |---------|------|------|
-| **Planner** | qwen3-32b | 작업 → 단계별 계획 분해 |
+| **Planner** | qwen3-32b | 작업 → 단계별 계획 분해 + 리스크 분석 |
 | **Executor** | qwen3-32b | 계획 → 구체적 결과물 생성 |
-| **Critic** | llama-3.3-70b | 4항목 점수제 품질 검증 (완전성/구체성/정확성/명확성) |
-| **Researcher** | qwen3-32b | DuckDuckGo 웹 검색 → 정보 수집 |
+| **Critic** | llama-3.3-70b | 4항목 점수제 검증 (완전성/구체성/정확성/명확성) |
+| **Researcher** | qwen3-32b | 웹 검색 → 정보 수집 (영어 쿼리 자동 변환) |
 | **Reporter** | qwen3-32b | 구조화된 리포트 작성 → Markdown 저장 |
 | **Enhancer** | qwen3-32b | threadloom 데이터 → 강화 제안 생성 |
-| **Memory** | - | 실행 이력 JSON 저장 |
+| **Applier** | - | 강화 제안 → threadloom pending 파일 생성 |
+
+---
 
 ## 빠른 시작
 
@@ -50,56 +186,42 @@ threadloom (눈과 귀)                multi-agent-langgraph (두뇌)
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# .env 파일 생성 (Groq API 키 필수)
+# .env 파일 생성 (Groq API 키 필수, https://console.groq.com/keys)
 cp .env.example .env
-# GROQ_API_KEY=gsk_... 입력
 
 # 실행
-python -m src.main "Python FastAPI 인증 시스템 설계"                    # plan 모드
-python -m src.main --mode research "LangGraph 최신 기능"                # research 모드
-python -m src.main --mode enhance "threadloom 기반 강화 계획"           # enhance 모드
+python -m src.main "Python FastAPI 인증 시스템 설계"                    # plan
+python -m src.main --mode research "LangGraph 최신 기능"                # research
+python -m src.main --mode enhance "threadloom 기반 강화 계획"           # enhance
 
 # 결과 확인
 ls data/reports/
 ```
 
-## 주요 기능
-
-### Critic 기반 품질 루프
-Critic이 결과물을 4가지 기준으로 평가하고, 기준 미달 시 구체적 피드백과 함께 이전 에이전트로 되돌려 보냅니다. 최대 반복 횟수(기본 3회)까지 자동 개선됩니다.
-
-### 프로젝트 컨텍스트 자동 주입
-작업 설명에 "threadloom" 등 키워드가 포함되면, threadloom 프로젝트의 아키텍처 요약이 모든 에이전트에 자동 주입됩니다. 로컬 프로젝트에 대한 정확한 분석이 가능합니다.
-
-### 출처 신뢰성
-- 출처 날조(hallucination) 방지 규칙 5개 적용
-- 검색 결과에 없는 URL 인용 시 FAIL 판정
-- 로컬 데이터 기반 리포트는 출처 섹션 자동 생략
-
-## 기술 스택
-
-- **Orchestration**: LangGraph (StateGraph, conditional edges)
-- **LLM**: Groq 무료 티어 (비용 $0)
-- **Search**: DuckDuckGo (ddgs, 무료)
-- **Observability**: LangSmith (선택)
-- **Test**: pytest (18개 테스트)
-
 ## 프로젝트 구조
 
 ```
 src/
-├── agents/          # 7개 에이전트
+├── agents/          # 7개 에이전트 (planner, executor, critic, researcher, reporter, enhancer, memory)
 ├── graph/           # 3개 워크플로우 (plan, research, enhance)
-├── tools/           # 검색, 파일 I/O, threadloom 로더
+├── tools/           # 검색, 파일 I/O, threadloom 로더/라이터, 리포트 이력
 ├── config.py        # 모델/토큰 설정
-└── main.py          # CLI 진입점
+└── main.py          # CLI 진입점 (rich UI)
 tests/               # 18개 테스트
 docs/
-└── architecture.md  # 시스템 설계 문서
-data/
-├── reports/         # 생성된 리포트 저장소
-└── execution_history.json
+├── architecture.md  # 시스템 설계 문서
+└── decisions.md     # 기술 의사결정 기록 (ADR 6개)
 ```
+
+## 기술 스택
+
+| 항목 | 기술 | 선택 이유 |
+|------|------|----------|
+| Orchestration | LangGraph | StateGraph + conditional edges로 에이전트 루프 구현 |
+| LLM | Groq 무료 티어 | 비용 $0, 고성능 모델 접근 가능 |
+| 검색 | ddgs (DuckDuckGo) | 무료, API 키 불필요 |
+| CLI | rich | 실행 상태 + 결과 패널 표시 |
+| 관찰성 | LangSmith (선택) | 워크플로우 트레이싱 |
 
 ## 라이선스
 
