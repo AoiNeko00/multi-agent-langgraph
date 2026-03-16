@@ -4,18 +4,26 @@
 
 ## 왜 만들었는가?
 
-[threadloom](https://github.com/) 프로젝트는 Threads 저장 포스트에서 유용한 패턴을 자동 발견하고, AI가 자신의 skills/agents/rules를 생성하는 4단계 자기강화 파이프라인입니다.
+[threadloom](https://github.com/) 프로젝트는 Threads 저장 포스트에서 유용한 패턴을 자동 발견하고, AI CLI를 호출하여 skills/agents/rules를 자동 생성·적용하는 4단계 자기강화 파이프라인입니다. 수집부터 적용까지 전 과정이 이미 자동화되어 있습니다.
 
-그런데 threadloom은 **수집과 분석**은 잘 하지만, "수집된 인사이트로 **무엇을 할지 판단**"하는 부분이 없었습니다. 사람이 직접 리뷰하고 적용해야 했습니다.
+이 프로젝트는 threadloom의 **자기강화 개념을 LangGraph 멀티에이전트 아키텍처로 재설계**한 것입니다.
 
-이 프로젝트는 그 **판단하는 두뇌** 역할을 합니다:
+| | threadloom | 이 프로젝트 |
+|--|-----------|------------|
+| 실행 방식 | 순차 파이프라인 (Phase 1→2→3→4) | 그래프 기반 오케스트레이션 (조건부 루프) |
+| AI 호출 | subprocess CLI 호출 (2회 고정) | LangGraph + Groq API 직접 호출 (동적) |
+| 품질 관리 | Python 규칙 기반 필터 | Critic 에이전트 4항목 점수제 + 자동 재실행 |
+| 적용 범위 | Threads 수집 전용 | 범용 (plan/research/enhance) |
+| 피드백 루프 | 없음 (단방향) | Critic FAIL → 이전 에이전트로 피드백 전달 |
+
+threadloom의 분석 데이터를 입력으로 받아 **추가 강화 제안을 생성하고, threadloom에 다시 주입**하는 양방향 연동을 지원합니다.
 
 ```
-threadloom (눈과 귀)                    이 프로젝트 (두뇌)
-  Threads 포스트 수집                      수집된 인사이트 분석
-  패턴 발견                                강화 방안 제안
-  data/analysis/ 출력     ─────→          실행 계획 수립
-                          ←─────          threadloom에 자동 적용
+threadloom (자기강화 파이프라인)          이 프로젝트 (멀티에이전트 오케스트레이터)
+  수집 → 분석 → 생성 → 적용               plan: 작업 계획 수립
+  data/analysis/ 출력    ─────→           enhance: 추가 강화 제안 생성
+                         ←─────           data/pending/에 강화 항목 저장
+                                          research: 관련 기술 조사
 ```
 
 **비용: $0** (Groq 무료 티어)
