@@ -34,6 +34,8 @@ Planner → Executor → Critic → (조건부 루프)
 - **State**: `AgentState` TypedDict로 전 노드 간 상태 공유
 - **Conditional Edge**: Critic 판정에 따라 루프 또는 완료
 - **Checkpointing**: LangGraph 내장 체크포인트로 중단/재개 지원
+- **Send API**: `parallel_research.py`에서 팬아웃 병렬 검색 (query_generator → search_worker x N)
+- **Human-in-the-loop**: `enhance_workflow.py`에서 `interrupt()` + `MemorySaver`로 승인 흐름 (`--approve` 플래그)
 
 ### 디렉토리 구조
 
@@ -51,7 +53,8 @@ src/
 │   ├── state.py         # AgentState 정의
 │   ├── workflow.py      # 기본 워크플로우 (Planner→Executor→Critic)
 │   ├── research_workflow.py  # 리서치 워크플로우 (Researcher→Reporter→Critic)
-│   ├── enhance_workflow.py   # 강화 워크플로우 (Enhancer→Planner→Critic→Reporter)
+│   ├── enhance_workflow.py   # 강화 워크플로우 (Enhancer→Planner→Critic→Reporter) + HITL interrupt
+│   ├── parallel_research.py  # 병렬 검색 워크플로우 (Send API fan-out)
 │   └── nodes.py         # 노드 함수 정의
 ├── tools/
 │   ├── search.py        # DuckDuckGo 웹 검색 도구
@@ -88,6 +91,9 @@ python -m src.main --mode research "조사할 주제"
 
 # 실행 (강화 모드 — threadloom 연동)
 python -m src.main --mode enhance "강화 주제"
+
+# 실행 (강화 모드 + 승인 요청 — Human-in-the-loop)
+python -m src.main --mode enhance --approve "강화 주제"
 
 # 테스트
 pytest tests/ -v

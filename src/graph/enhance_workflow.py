@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 
 from langgraph.graph import END, StateGraph
+from langgraph.types import interrupt
 
 from src.agents.critic import critique
 from src.agents.enhancer import enhance
@@ -53,23 +54,53 @@ def reporter_node(state: AgentState) -> dict:
     return report(report_state)
 
 
+def _has_checkpointer() -> bool:
+    """현재 실행 중인 그래프에 체크포인터(checkpointer)가 있는지 확인한다."""
+    from langgraph.config import get_config
+
+    cfg = get_config()
+    configurable = cfg.get("configurable", {})
+    return configurable.get("__pregel_checkpointer") is not None
+
+
 def applier_node(state: AgentState) -> dict:
-    """Applier 노드: 강화 제안을 threadloom data/pending/에 저장한다."""
+    """Applier 노드: 강화 제안을 threadloom data/pending/에 저장한다.
+
+    Human-in-the-loop(HITL) 모드에서는 적용 전 interrupt로 승인을 요청한다.
+    """
     result = state.get("result", "")
-    applied = []
-
-    # 제안에서 유형과 이름을 파싱(parsing)하여 pending 파일 생성
     proposals = _parse_proposals(result)
-    for prop in proposals:
-        msg = write_pending_action.invoke(prop)
-        applied.append(msg)
 
-    applied_summary = "\n".join(applied) if applied else "적용할 강화 항목이 없습니다."
+    if not proposals:
+        return {
+            "result": f"{result}\n\n## 적용 결과\n적용할 강화 항목이 없습니다.",
+            "status": "done",
+        }
+
+    # 체크포인터(checkpointer) 유무로 HITL 모드 판별
+    if _has_checkpointer():
+        file_list = "\n".join(
+            f"  - {p['action_type']}: {p['name']}" for p in proposals
+        )
+        interrupt({"files_to_create": file_list, "count": len(proposals)})
+
+    # interrupt 통과 후 실제 적용(apply)
+    applied = _apply_proposals(proposals)
+    applied_summary = "\n".join(applied)
 
     return {
         "result": f"{result}\n\n## 적용 결과\n{applied_summary}",
         "status": "done",
     }
+
+
+def _apply_proposals(proposals: list[dict]) -> list[str]:
+    """파싱된 제안 목록을 pending 파일로 저장한다."""
+    applied = []
+    for prop in proposals:
+        msg = write_pending_action.invoke(prop)
+        applied.append(msg)
+    return applied
 
 
 _VALID_TYPES = {"skill", "agent", "rule", "reasoning_rule"}
@@ -170,7 +201,11 @@ def build_enhance_workflow() -> StateGraph:
     return workflow
 
 
-def create_enhance_app():
-    """컴파일된 강화 계획 워크플로우 앱을 반환한다."""
+def create_enhance_app(checkpointer=None):
+    """컴파일된 강화 계획 워크플로우 앱을 반환한다.
+
+    Args:
+        checkpointer: Human-in-the-loop 사용 시 MemorySaver 전달
+    """
     workflow = build_enhance_workflow()
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)

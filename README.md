@@ -206,16 +206,46 @@ python -m src.main --mode enhance "threadloom 기반 강화 계획"           # 
 ls data/reports/
 ```
 
+## LangGraph 고급 기능 활용
+
+### Send API 병렬 검색
+```python
+# src/graph/parallel_research.py
+def fan_out_search(state):
+    """3개 검색 쿼리를 병렬로 실행 (fan-out/fan-in 패턴)"""
+    return [Send("search_worker", {"query": q}) for q in state["queries"]]
+```
+`query_generator` → `search_worker` x N (병렬) → `collector` → `reporter` → `critic`
+
+### Human-in-the-Loop (승인 흐름)
+```bash
+$ python -m src.main --mode enhance --approve "threadloom 강화"
+# Applier가 적용 전 interrupt → 사용자 승인/거부 → 승인 시 적용
+```
+
+### 성과 측정
+```
+╭──────────── 성과 지표 ────────────╮
+│ 처리 시간: 12.3초                  │
+│ LLM 호출: 4회                      │
+│ 반복 횟수: 1                       │
+╰────────────────────────────────────╯
+```
+모든 실행 결과가 `data/metrics.json`에 누적 기록됩니다.
+
+---
+
 ## 프로젝트 구조
 
 ```
 src/
 ├── agents/          # 7개 에이전트 (planner, executor, critic, researcher, reporter, enhancer, memory)
-├── graph/           # 3개 워크플로우 (plan, research, enhance)
-├── tools/           # 검색, 파일 I/O, threadloom 로더/라이터, 리포트 이력
+├── graph/           # 4개 워크플로우 (plan, research, enhance, parallel_research)
+├── tools/           # 검색, 파일 I/O, threadloom 로더/라이터, 코드 분석, 리포트 이력
 ├── config.py        # 모델/토큰 설정
-└── main.py          # CLI 진입점 (rich UI)
-tests/               # 18개 테스트
+├── metrics.py       # 성과 지표 수집/저장
+└── main.py          # CLI 진입점 (rich UI + 성과 패널)
+tests/               # 54개 테스트 (단위 + 통합 + 파서 + 도구)
 docs/
 ├── architecture.md  # 시스템 설계 문서
 └── decisions.md     # 기술 의사결정 기록 (ADR 6개)
@@ -225,11 +255,13 @@ docs/
 
 | 항목 | 기술 | 선택 이유 |
 |------|------|----------|
-| Orchestration | LangGraph | StateGraph + conditional edges로 에이전트 루프 구현 |
+| Orchestration | LangGraph | StateGraph + conditional edges + Send API + interrupt |
 | LLM | Groq 무료 티어 | 비용 $0, 고성능 모델 접근 가능 |
 | 검색 | ddgs (DuckDuckGo) | 무료, API 키 불필요 |
-| CLI | rich | 실행 상태 + 결과 패널 표시 |
+| 코드 분석 | ast (stdlib) | Python 소스 구조 분석, 복잡도 판별 |
+| CLI | rich | 실행 상태 + 결과 + 성과 지표 패널 |
 | 관찰성 | LangSmith (선택) | 워크플로우 트레이싱 |
+| 테스트 | pytest (54개) | 단위 + Mock 통합 + 파서 edge case |
 
 ## 라이선스
 
