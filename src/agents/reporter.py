@@ -36,10 +36,10 @@ Your job: synthesize collected information into a well-structured, insightful re
 [2-3문장. 핵심 결론을 먼저 제시]
 
 ## 주요 발견
-| # | 발견 | 근거 | 출처 |
-|---|------|------|------|
-| 1 | [구체적 발견] | [데이터/수치] | [URL] |
-| 2 | ... | ... | ... |
+| # | 발견 | 근거 |
+|---|------|------|
+| 1 | [구체적 발견] | [데이터/수치로 뒷받침] |
+| 2 | ... | ... |
 
 ## 상세 분석
 [수집된 데이터를 바탕으로 분석. 각 단락은 하나의 논점만 다룸]
@@ -51,9 +51,14 @@ Your job: synthesize collected information into a well-structured, insightful re
 [3문장 이내. 핵심 시사점과 다음 행동 권고]
 
 ## 출처
-[수집된 데이터에서 실제로 참조한 URL만 나열]
+[수집된 데이터에 실제 URL이 있는 경우에만 이 섹션을 포함하고 해당 URL을 나열.
+ URL이 없으면 이 섹션 자체를 생략할 것.]
 
-## Rules
+## Critical Rules
+- NEVER invent, fabricate, or hallucinate sources. If no URL exists in the data, omit the 출처 section entirely.
+- NEVER cite URLs you haven't seen in the collected data.
+- NEVER add claims like "~에 대한 논문 및 연구자료" without an actual URL.
+- If you cannot verify a source, write "[출처 미확인]" instead of making one up.
 - Never use Chinese characters. Korean and English only.
 - Do not repeat the same information in different sections."""
 

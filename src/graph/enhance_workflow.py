@@ -40,12 +40,15 @@ def planner_node(state: AgentState) -> dict:
 
 def reporter_node(state: AgentState) -> dict:
     """Reporter 에이전트 노드: 최종 강화 계획을 리포트로 저장."""
-    # plan + result를 합쳐서 리포트 컨텍스트 구성
+    # 출처 안내(source guidance)를 명시적으로 포함
     report_state = {
         **state,
         "result": (
             f"## 강화 제안\n{state.get('result', '')}\n\n"
-            f"## 실행 계획\n{state.get('plan', '')}"
+            f"## 실행 계획\n{state.get('plan', '')}\n\n"
+            f"## 출처 안내\n"
+            f"이 데이터는 threadloom 프로젝트의 로컬 분석 파일에서 가져온 것입니다.\n"
+            f"외부 URL 출처가 없으므로 출처 섹션을 생략하세요."
         ),
     }
     return report(report_state)
