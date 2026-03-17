@@ -82,14 +82,19 @@ def run(task: str, max_iterations: int = 3, mode: str = "plan") -> dict:
     save_metrics(metrics)
     print_metrics(metrics, console)
 
-    save_execution(
-        task=final_state["task"],
-        plan=final_state.get("plan", ""),
-        result=final_state["result"],
-        iterations=final_state["iteration"],
-    )
+    _save_execution_safe(final_state)
 
     return final_state
+
+
+def _save_execution_safe(final_state: dict) -> None:
+    """최종 상태에서 실행 이력을 안전하게 저장한다."""
+    save_execution(
+        task=final_state.get("task", ""),
+        plan=final_state.get("plan", ""),
+        result=final_state.get("result", ""),
+        iterations=final_state.get("iteration", 0),
+    )
 
 
 def run_with_approval(task: str, max_iterations: int = 3) -> dict:
@@ -112,17 +117,16 @@ def run_with_approval(task: str, max_iterations: int = 3) -> dict:
         style="bold",
     )
 
-    # 첫 실행 — applier에서 interrupt 발생 가능
     start = time.time()
     final_state = app.invoke(initial_state, config=thread_config)
 
-    # interrupt 상태 확인(interrupt check)
+    # interrupt 상태 확인(interrupt check) — 안전한 접근
     graph_state = app.get_state(thread_config)
-    if graph_state.next:
+    if graph_state.next and _has_interrupt(graph_state):
         interrupt_data = graph_state.tasks[0].interrupts[0].value
         console.print(Panel(
-            f"적용 대상 파일 ({interrupt_data['count']}개):\n"
-            f"{interrupt_data['files_to_create']}",
+            f"적용 대상 파일 ({interrupt_data.get('count', '?')}개):\n"
+            f"{interrupt_data.get('files_to_create', '(없음)')}",
             title="승인 요청",
             border_style="yellow",
         ))
@@ -133,19 +137,24 @@ def run_with_approval(task: str, max_iterations: int = 3) -> dict:
             config=thread_config,
         )
 
-    # 성과 지표(metrics) 수집 및 저장
     metrics = create_metrics(start, final_state, "enhance")
     save_metrics(metrics)
     print_metrics(metrics, console)
 
-    save_execution(
-        task=final_state["task"],
-        plan=final_state.get("plan", ""),
-        result=final_state["result"],
-        iterations=final_state["iteration"],
-    )
+    _save_execution_safe(final_state)
 
     return final_state
+
+
+def _has_interrupt(graph_state) -> bool:
+    """그래프 상태에 유효한 interrupt가 있는지 안전하게 확인한다."""
+    try:
+        return bool(
+            graph_state.tasks
+            and graph_state.tasks[0].interrupts
+        )
+    except (AttributeError, IndexError):
+        return False
 
 
 def main() -> None:
@@ -187,8 +196,8 @@ def main() -> None:
     label = MODE_LABELS.get(args.mode, args.mode)
     console.print(Panel(
         f"모드: {label}\n"
-        f"상태: [green]{result['status']}[/green]\n"
-        f"반복 횟수: {result['iteration']}",
+        f"상태: [green]{result.get('status', '')}[/green]\n"
+        f"반복 횟수: {result.get('iteration', 0)}",
         title="실행 완료",
         border_style="green",
     ))
@@ -196,9 +205,10 @@ def main() -> None:
     if result.get("report_path"):
         console.print(f"\n[bold]리포트:[/bold] {result['report_path']}")
 
-    if result.get("feedback"):
+    feedback = result.get("feedback", "")
+    if feedback:
         console.print(Panel(
-            result["feedback"][:500],
+            feedback[:500],
             title="Critic 피드백",
             border_style="yellow",
         ))

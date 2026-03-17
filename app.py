@@ -49,12 +49,15 @@ st.sidebar.divider()
 st.sidebar.subheader("성과 지표")
 metrics_path = Path("data/metrics.json")
 if metrics_path.exists():
-    metrics = json.loads(metrics_path.read_text())
-    if metrics:
-        latest = metrics[-1]
-        st.sidebar.metric("최근 처리 시간", f"{latest.get('duration_seconds', 0)}초")
-        st.sidebar.metric("최근 토큰 사용", f"{latest.get('total_tokens', 0):,}")
-        st.sidebar.metric("총 실행 횟수", len(metrics))
+    try:
+        metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+        if metrics:
+            latest = metrics[-1]
+            st.sidebar.metric("최근 처리 시간", f"{latest.get('duration_seconds', 0)}초")
+            st.sidebar.metric("최근 토큰 사용", f"{latest.get('total_tokens', 0):,}")
+            st.sidebar.metric("총 실행 횟수", len(metrics))
+    except (json.JSONDecodeError, KeyError):
+        st.sidebar.warning("지표 데이터를 읽을 수 없습니다")
 else:
     st.sidebar.info("아직 실행 기록이 없습니다")
 

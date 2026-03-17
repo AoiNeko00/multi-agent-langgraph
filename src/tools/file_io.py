@@ -12,6 +12,14 @@ from langchain_core.tools import tool
 REPORTS_DIR = Path("data/reports")
 
 
+def _safe_path(base: Path, filename: str) -> Path:
+    """경로 탈출(path traversal)을 방지하는 안전한 경로를 반환한다."""
+    filepath = (base / filename).resolve()
+    if not str(filepath).startswith(str(base.resolve())):
+        raise ValueError(f"경로 탈출 시도 감지: {filename}")
+    return filepath
+
+
 @tool
 def save_report(filename: str, content: str) -> str:
     """리포트를 파일로 저장한다.
@@ -24,7 +32,10 @@ def save_report(filename: str, content: str) -> str:
         저장 결과 메시지
     """
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    filepath = REPORTS_DIR / filename
+    try:
+        filepath = _safe_path(REPORTS_DIR, filename)
+    except ValueError as e:
+        return str(e)
     filepath.write_text(content, encoding="utf-8")
     return f"리포트 저장 완료: {filepath}"
 
@@ -39,7 +50,10 @@ def read_report(filename: str) -> str:
     Returns:
         파일 내용 또는 에러 메시지
     """
-    filepath = REPORTS_DIR / filename
+    try:
+        filepath = _safe_path(REPORTS_DIR, filename)
+    except ValueError as e:
+        return str(e)
     if not filepath.exists():
         return f"파일을 찾을 수 없습니다: {filepath}"
     return filepath.read_text(encoding="utf-8")

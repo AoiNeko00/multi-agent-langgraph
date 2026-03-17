@@ -112,10 +112,11 @@ def critique(state: AgentState) -> dict:
     avg_score = sum(scores.values()) / len(scores) if scores else 0
     passed = judge_verdict(scores)
 
-    # 피드백 추출(feedback extraction)
+    # 피드백 추출(feedback extraction) — 안전한 파싱
     feedback = ""
     if "FEEDBACK:" in content:
-        feedback = content.split("FEEDBACK:", 1)[1].strip()
+        parts = content.split("FEEDBACK:", 1)
+        feedback = parts[1].strip() if len(parts) > 1 else ""
 
     # 점수 요약을 피드백에 추가
     score_summary = " / ".join(f"{k}:{v}" for k, v in scores.items())

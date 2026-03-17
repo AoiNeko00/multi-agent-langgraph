@@ -46,9 +46,9 @@ def write_pending_action(
     filename = f"{action_type}_{slug}.md"
     filepath = pending_dir / filename
 
-    # 이미 존재하면 덮어쓰지 않음(overwrite prevention)
+    # 이미 존재하면 덮어쓰지 않음(overwrite prevention) — 명시적 경고
     if filepath.exists():
-        return f"이미 존재하는 파일입니다 (중복 방지): {filepath}"
+        return f"[건너뜀] 이미 존재하는 파일입니다 (중복 방지): {filepath}"
 
     # YAML frontmatter + 본문 구성
     now = datetime.now().strftime("%Y-%m-%d")

@@ -26,6 +26,25 @@ def test_read_nonexistent_report(tmp_path, monkeypatch):
     assert "찾을 수 없습니다" in content
 
 
+def test_save_report_path_traversal(tmp_path, monkeypatch):
+    """경로 탈출(path traversal) 시도를 차단하는지 확인한다."""
+    monkeypatch.setattr("src.tools.file_io.REPORTS_DIR", tmp_path)
+
+    result = save_report.invoke({
+        "filename": "../../../tmp/evil.py",
+        "content": "malicious",
+    })
+    assert "경로 탈출" in result
+
+
+def test_read_report_path_traversal(tmp_path, monkeypatch):
+    """읽기 시 경로 탈출(path traversal) 시도를 차단하는지 확인한다."""
+    monkeypatch.setattr("src.tools.file_io.REPORTS_DIR", tmp_path)
+
+    result = read_report.invoke({"filename": "../../etc/passwd"})
+    assert "경로 탈출" in result
+
+
 # --- 코드 분석(code analysis) 도구 테스트 ---
 
 

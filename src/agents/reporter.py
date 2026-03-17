@@ -102,8 +102,8 @@ def report(state: AgentState) -> dict:
     filename = f"{slug}_{timestamp}.md"
 
     # Qwen3 /no_think 사용 시 남는 <think> 태그 제거(cleanup)
-    content = response.content
-    content = re.sub(r"<think>[\s\S]*?</think>\s*", "", content).strip()
+    from src.utils import strip_think_tags
+    content = strip_think_tags(response.content)
 
     save_result = save_report.invoke({
         "filename": filename,

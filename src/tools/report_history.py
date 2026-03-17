@@ -36,13 +36,13 @@ def search_past_reports(keyword: str, max_results: int = 3) -> str:
     keyword_lower = keyword.lower()
 
     for f in files:
-        content = f.read_text(encoding="utf-8")
+        try:
+            content = f.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, PermissionError):
+            continue
         if keyword_lower in content.lower():
-            # 첫 500자만 요약으로 추출
             summary = content[:500].strip()
-            matches.append(
-                f"### {f.name}\n{summary}..."
-            )
+            matches.append(f"### {f.name}\n{summary}...")
 
         if len(matches) >= max_results:
             break
@@ -64,8 +64,10 @@ def get_recent_reports(limit: int = 3) -> str:
 
     lines = [f"## 최근 리포트 ({len(files)}건)"]
     for f in files:
-        content = f.read_text(encoding="utf-8")
-        # 개요 섹션만 추출
+        try:
+            content = f.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, PermissionError):
+            continue
         overview = _extract_overview(content)
         lines.append(f"- **{f.name}**: {overview}")
 

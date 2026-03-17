@@ -93,7 +93,7 @@ def save_metrics(metrics: WorkflowMetrics) -> None:
     if METRICS_PATH.exists():
         try:
             history = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError:
             history = []
 
     history.append(asdict(metrics))

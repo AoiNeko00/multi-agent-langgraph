@@ -94,8 +94,8 @@ def query_generator_node(state: ParallelResearchState) -> dict:
     response = llm.invoke(messages)
 
     # 응답에서 쿼리 파싱(parsing)
-    content = response.content
-    content = re.sub(r"<think>[\s\S]*?</think>\s*", "", content).strip()
+    from src.utils import strip_think_tags
+    content = strip_think_tags(response.content)
     lines = [ln.strip() for ln in content.strip().split("\n") if ln.strip()]
     queries = lines[:3]
 
