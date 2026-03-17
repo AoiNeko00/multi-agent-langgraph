@@ -96,9 +96,9 @@ def critique(state: AgentState) -> dict:
     messages = [SystemMessage(content=SYSTEM_PROMPT)]
 
     prompt = (
-        f"## 원래 작업\n{state['task']}\n\n"
+        f"## 원래 작업\n{state.get('task', '')}\n\n"
         f"## 실행 계획\n{state.get('plan', '(없음)')}\n\n"
-        f"## 실행 결과\n{state['result']}\n\n"
+        f"## 실행 결과\n{state.get('result', '')}\n\n"
         f"위 결과물을 평가 기준에 따라 검증하세요."
     )
 

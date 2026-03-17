@@ -19,7 +19,10 @@ THREADLOOM_PATH = Path(
 
 def _read_frontmatter_and_body(filepath: Path) -> dict:
     """YAML frontmatter와 본문을 분리하여 반환한다."""
-    text = filepath.read_text(encoding="utf-8")
+    try:
+        text = filepath.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, PermissionError):
+        return {"frontmatter": "", "body": "", "filename": filepath.name}
     if not text.startswith("---"):
         return {"frontmatter": "", "body": text, "filename": filepath.name}
 

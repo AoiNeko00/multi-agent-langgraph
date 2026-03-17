@@ -88,22 +88,22 @@ def plan(state: AgentState) -> dict:
     if state.get("context"):
         context_block = (
             f"## 프로젝트 컨텍스트 (반드시 이 정보를 기반으로 계획을 수립할 것)\n"
-            f"{state['context']}\n\n"
+            f"{state.get('context', '')}\n\n"
         )
 
     # 피드백(feedback)이 있으면 개선 요청으로 변환
     if state.get("feedback"):
         prompt = (
             f"{history_block}{context_block}"
-            f"## 작업\n{state['task']}\n\n"
+            f"## 작업\n{state.get('task', '')}\n\n"
             f"## 이전 계획\n{state.get('plan', '')}\n\n"
-            f"## Critic 피드백 (반드시 모두 반영할 것)\n{state['feedback']}\n\n"
+            f"## Critic 피드백 (반드시 모두 반영할 것)\n{state.get('feedback', '')}\n\n"
             f"피드백의 각 지적사항을 하나씩 해결하여 계획을 수정하세요."
         )
     else:
         prompt = (
             f"{history_block}{context_block}"
-            f"## 작업\n{state['task']}\n\n위 작업에 대한 실행 계획을 작성하세요."
+            f"## 작업\n{state.get('task', '')}\n\n위 작업에 대한 실행 계획을 작성하세요."
         )
 
     messages.append(HumanMessage(content=prompt))
