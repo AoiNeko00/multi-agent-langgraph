@@ -11,6 +11,7 @@ from pathlib import Path
 
 from langchain_core.tools import tool
 
+from src.tools.file_io import _safe_path
 from src.tools.threadloom import THREADLOOM_PATH
 
 
@@ -44,7 +45,10 @@ def write_pending_action(
 
     slug = _slugify(name)
     filename = f"{action_type}_{slug}.md"
-    filepath = pending_dir / filename
+    try:
+        filepath = _safe_path(pending_dir, filename)
+    except ValueError as e:
+        return str(e)
 
     # 이미 존재하면 덮어쓰지 않음(overwrite prevention) — 명시적 경고
     if filepath.exists():

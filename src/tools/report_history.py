@@ -7,11 +7,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from langchain_core.tools import tool
 
-REPORTS_DIR = Path("data/reports")
+from src.tools.file_io import REPORTS_DIR
 
 
 @tool

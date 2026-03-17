@@ -14,6 +14,7 @@ from langchain_groq import ChatGroq
 from src.config import MAX_TOKENS_STRONG, MODEL_STRONG
 from src.graph.state import AgentState
 from src.tools.file_io import save_report
+from src.utils import strip_think_tags
 
 
 SYSTEM_PROMPT = """/no_think
@@ -102,7 +103,6 @@ def report(state: AgentState) -> dict:
     filename = f"{slug}_{timestamp}.md"
 
     # Qwen3 /no_think 사용 시 남는 <think> 태그 제거(cleanup)
-    from src.utils import strip_think_tags
     content = strip_think_tags(response.content)
 
     save_result = save_report.invoke({
