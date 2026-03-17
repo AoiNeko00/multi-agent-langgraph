@@ -26,11 +26,7 @@ def init_config() -> None:
 # Groq 모델(model) 설정
 MODEL_STRONG = "qwen/qwen3-32b"
 MODEL_REASONING = "llama-3.3-70b-versatile"
-MODEL_FAST = "llama-3.1-8b-instant"
 
 # 모델별 최대 출력 토큰(max completion tokens)
 MAX_TOKENS_STRONG = 40_960      # qwen3-32b
 MAX_TOKENS_REASONING = 32_768   # llama-3.3-70b
-MAX_TOKENS_FAST = 131_072       # llama-3.1-8b
-
-MAX_ITERATIONS = 3

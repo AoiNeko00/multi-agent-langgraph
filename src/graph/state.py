@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 from langchain_core.messages import BaseMessage
+
+Status = Literal[
+    "planning", "executing", "reviewing",
+    "enhancing", "reporting", "searching",
+    "done", "failed",
+]
 
 
 class AgentState(TypedDict):
@@ -20,7 +26,7 @@ class AgentState(TypedDict):
         max_iterations: 최대 루프 반복 횟수
         context: 프로젝트 컨텍스트 (로컬 프로젝트 정보 주입용)
         report_path: 저장된 리포트 파일 경로
-        status: 워크플로우 상태 (planning | executing | reviewing | done | failed)
+        status: 워크플로우 상태
     """
 
     messages: list[BaseMessage]
@@ -32,4 +38,4 @@ class AgentState(TypedDict):
     max_iterations: int
     context: str
     report_path: str
-    status: str
+    status: Status

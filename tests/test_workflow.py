@@ -2,8 +2,7 @@
 
 from langgraph.graph import END
 
-from src.graph.nodes import should_continue
-from src.graph.workflow import build_workflow, create_app
+from src.graph.workflow import build_workflow, create_app, should_continue
 from src.graph.research_workflow import (
     build_research_workflow,
     create_research_app,
@@ -55,7 +54,7 @@ def test_should_continue_done():
         "report_path": "",
         "status": "done",
     }
-    assert should_continue(state) == "end"
+    assert should_continue(state) == "reporter"
 
 
 def test_should_continue_reviewing():

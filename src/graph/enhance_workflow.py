@@ -103,13 +103,13 @@ def _apply_proposals(proposals: list[dict]) -> list[str]:
     return applied
 
 
-_VALID_TYPES = {"skill", "agent", "rule", "reasoning_rule"}
 _TYPE_MAP = {
     "skill": "create_skill",
     "agent": "create_agent",
     "rule": "add_rule",
     "reasoning_rule": "add_rule",
 }
+_VALID_TYPES = set(_TYPE_MAP)
 
 
 def _parse_proposals(text: str) -> list[dict]:

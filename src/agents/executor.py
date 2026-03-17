@@ -11,6 +11,7 @@ from langchain_groq import ChatGroq
 
 from src.config import MAX_TOKENS_STRONG, MODEL_STRONG
 from src.graph.state import AgentState
+from src.utils import strip_think_tags
 
 
 SYSTEM_PROMPT = """/no_think
@@ -82,7 +83,7 @@ def execute(state: AgentState) -> dict:
     response = llm.invoke(messages)
 
     return {
-        "result": response.content,
+        "result": strip_think_tags(response.content),
         "status": "executing",
         "messages": state.get("messages", []) + [response],
     }

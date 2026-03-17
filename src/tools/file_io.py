@@ -54,6 +54,7 @@ def read_report(filename: str) -> str:
         filepath = _safe_path(REPORTS_DIR, filename)
     except ValueError as e:
         return str(e)
-    if not filepath.exists():
+    try:
+        return filepath.read_text(encoding="utf-8")
+    except FileNotFoundError:
         return f"파일을 찾을 수 없습니다: {filepath}"
-    return filepath.read_text(encoding="utf-8")

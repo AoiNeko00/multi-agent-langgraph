@@ -15,6 +15,7 @@ from langchain_groq import ChatGroq
 
 from src.config import MAX_TOKENS_REASONING, MODEL_REASONING
 from src.graph.state import AgentState
+from src.utils import strip_think_tags
 
 
 SYSTEM_PROMPT = """/no_think
@@ -105,7 +106,7 @@ def critique(state: AgentState) -> dict:
     messages.append(HumanMessage(content=prompt))
     response = llm.invoke(messages)
 
-    content = response.content
+    content = strip_think_tags(response.content)
 
     # 점수 파싱 + 프로그래밍적 판정(programmatic verdict)
     scores = parse_scores(content)

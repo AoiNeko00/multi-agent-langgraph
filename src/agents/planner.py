@@ -12,6 +12,7 @@ from langchain_groq import ChatGroq
 from src.config import MAX_TOKENS_STRONG, MODEL_STRONG
 from src.graph.state import AgentState
 from src.tools.report_history import get_recent_reports
+from src.utils import strip_think_tags
 
 
 SYSTEM_PROMPT = """/no_think
@@ -110,7 +111,7 @@ def plan(state: AgentState) -> dict:
     response = llm.invoke(messages)
 
     return {
-        "plan": response.content,
+        "plan": strip_think_tags(response.content),
         "status": "planning",
         "messages": state.get("messages", []) + [response],
     }
