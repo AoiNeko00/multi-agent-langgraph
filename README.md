@@ -6,9 +6,9 @@
 
 ## 왜 만들었는가?
 
-[threadloom](https://github.com/) 프로젝트는 Threads 저장 포스트에서 유용한 패턴을 자동 발견하고, AI CLI를 호출하여 skills/agents/rules를 자동 생성·적용하는 4단계 자기강화 파이프라인입니다. 수집부터 적용까지 전 과정이 이미 자동화되어 있습니다.
+[threadloom](https://github.com/AoiNeko00/threadloom) 프로젝트는 Threads 저장 포스트에서 유용한 패턴을 자동 발견하고, AI CLI를 호출하여 skills/agents/rules를 자동 생성·적용하는 4단계 자기강화 파이프라인입니다. 수집부터 적용까지 전 과정이 이미 자동화되어 있습니다.
 
-이 프로젝트는 threadloom의 **자기강화 개념을 LangGraph 멀티에이전트 아키텍처로 재설계**한 것입니다.
+threadloom을 개발하면서 **LLM의 출력 품질을 제어하는 것**이 가장 어려운 문제였습니다. 한자가 섞이고, 출처를 날조하고, 같은 말을 반복하는 리포트를 어떻게 신뢰할 수 있을까? 이 프로젝트는 그 문제를 **멀티에이전트 아키텍처 + 프로그래밍적 품질 검증**으로 체계적으로 해결하기 위해 시작했습니다.
 
 | | threadloom | 이 프로젝트 |
 |--|-----------|------------|
@@ -215,7 +215,7 @@ streamlit run app.py
 
 ## LangGraph 고급 기능 활용
 
-### Send API 병렬 검색
+### Send API 병렬 검색 (실험적)
 ```python
 # src/graph/parallel_research.py
 def fan_out_search(state):
@@ -223,6 +223,8 @@ def fan_out_search(state):
     return [Send("search_worker", {"query": q}) for q in state["queries"]]
 ```
 `query_generator` → `search_worker` x N (병렬) → `collector` → `reporter` → `critic`
+
+> LangGraph Send API의 fan-out/fan-in 패턴을 구현한 참조 코드입니다. CLI에서는 `research` 모드를 사용하세요.
 
 ### Human-in-the-Loop (승인 흐름)
 ```bash
@@ -232,13 +234,14 @@ $ python -m src.main --mode enhance --approve "threadloom 강화"
 
 ### 성과 측정
 ```
-╭──────────── 성과 지표 ────────────╮
-│ 처리 시간: 12.3초                  │
-│ LLM 호출: 4회                      │
-│ 반복 횟수: 1                       │
-╰────────────────────────────────────╯
+╭──────────────── 성과 지표 ────────────────╮
+│ 처리 시간: 66.07초                         │
+│ LLM 호출: 4회                              │
+│ 토큰: 12,326 입력 + 6,358 출력 = 18,684 총 │
+│ 반복 횟수: 1                               │
+╰────────────────────────────────────────────╯
 ```
-모든 실행 결과가 `data/metrics.json`에 누적 기록됩니다.
+Groq API `response.usage`에서 실제 토큰 수를 추출하여 `data/metrics.json`에 누적 기록합니다.
 
 ---
 
@@ -247,12 +250,12 @@ $ python -m src.main --mode enhance --approve "threadloom 강화"
 ```
 src/
 ├── agents/          # 7개 에이전트 (planner, executor, critic, researcher, reporter, enhancer, memory)
-├── graph/           # 4개 워크플로우 (plan, research, enhance, parallel_research)
+├── graph/           # 3개 워크플로우 (plan, research, enhance) + 1개 실험적 (parallel_research)
 ├── tools/           # 검색, 파일 I/O, threadloom 로더/라이터, 코드 분석, 리포트 이력
 ├── config.py        # 모델/토큰 설정
 ├── metrics.py       # 성과 지표 수집/저장
 └── main.py          # CLI 진입점 (rich UI + 성과 패널)
-tests/               # 54개 테스트 (단위 + 통합 + 파서 + 도구)
+tests/               # 67개 테스트 (단위 + 통합 + 파서 + 도구)
 docs/
 ├── architecture.md  # 시스템 설계 문서
 └── decisions.md     # 기술 의사결정 기록 (ADR 6개)
@@ -268,7 +271,7 @@ docs/
 | 코드 분석 | ast (stdlib) | Python 소스 구조 분석, 복잡도 판별 |
 | CLI | rich | 실행 상태 + 결과 + 성과 지표 패널 |
 | 관찰성 | LangSmith (선택) | 워크플로우 트레이싱 |
-| 테스트 | pytest (54개) | 단위 + Mock 통합 + 파서 edge case |
+| 테스트 | pytest (67개) | 단위 + Mock 통합 + 파서 edge case + 보안 |
 
 ## 이 프로젝트의 범위
 
